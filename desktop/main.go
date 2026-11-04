@@ -21,8 +21,8 @@ func main() {
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:             "FreeTurn Desktop",
-		Width:             1180,
-		Height:            780,
+		Width:             900,
+		Height:            600,
 		MinWidth:          900,
 		MinHeight:         600,
 		HideWindowOnClose: true,

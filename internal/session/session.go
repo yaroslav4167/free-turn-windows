@@ -391,8 +391,11 @@ func (s *Session) watch(ctx context.Context, cancel context.CancelFunc) error {
 
 			if s.captchaActive() {
 				deadline = time.Now().Add(s.opts.ConnectTimeout)
-				s.setStatus(PhaseCaptcha, n, "")
-				continue
+				// Verification for another link must not hide working streams.
+				if n == 0 {
+					s.setStatus(PhaseCaptcha, n, "")
+					continue
+				}
 			}
 
 			phase := PhaseConnecting

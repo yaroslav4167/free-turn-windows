@@ -1,0 +1,40 @@
+name: Windows desktop checks
+
+on:
+  push:
+    branches: ['feat/windows-desktop-experience']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-go@v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: desktop/frontend
+        run: npm ci
+      - name: Check frontend
+        working-directory: desktop/frontend
+        run: npx --no-install tsc --noEmit
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+      - name: Build desktop
+        working-directory: desktop
+        run: wails build -ldflags "-checklinkname=0 -s -w" -trimpath
+      - name: Test core and backend
+        run: go test -race ./internal/session ./mobile ./desktop/backend/...
+      - name: Vet core and backend
+        run: go vet ./internal/session ./mobile ./desktop/backend/...
