@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'react'
+import {tr} from '../language'
 import ServerForm from './ServerForm'
 import {
   backend,
@@ -24,12 +25,6 @@ interface Props {
 type Step = 'ssh' | 'existing' | 'config' | 'progress' | 'done'
 type TaskState = 'pending' | 'running' | 'done' | 'error'
 
-const TASK_LABEL: Record<string, string> = {
-  install: 'Установка free-turn-proxy',
-  wgSetup: 'Настройка WireGuard',
-  start: 'Запуск сервера',
-  save: 'Сохранение профиля',
-}
 
 // Must match backend.DefaultServer()'s Listen default.
 const DEFAULT_RELAY_LISTEN = '127.0.0.1:9000'
@@ -46,6 +41,11 @@ function newSshDraft(): serversetup.SSHConfig {
 }
 
 export default function CreateServerWizard({onCreated}: Props) {
+  const TASK_LABEL: Record<string, string> = {
+    install: tr('Установка free-turn-proxy', 'Installing free-turn-proxy'),
+    wgSetup: tr('Настройка WireGuard', 'Configuring WireGuard'),
+    start: tr('Запуск сервера', 'Starting server'), save: tr('Сохранение профиля', 'Saving profile'),
+  }
   const [step, setStep] = useState<Step>('ssh')
   const [ssh, setSsh] = useState<serversetup.SSHConfig>(newSshDraft())
   const [busy, setBusy] = useState(false)
@@ -88,7 +88,7 @@ export default function CreateServerWizard({onCreated}: Props) {
       if (probe.installed || probe.running) {
         const draft = await NewServer()
         draft.name = ssh.ip
-        // An unknown remote layout must not gain SSH management actions.
+        // Do not attach SSH management to an unknown installation layout.
         setExistingDraft(draft)
         setStep('existing')
         return
@@ -124,6 +124,7 @@ export default function CreateServerWizard({onCreated}: Props) {
 
     try {
       mark('install', 'running')
+      // Recheck just before the first remote mutation (also on retries).
       const fresh = await SetupProbe(ssh)
       if (fresh.installed || fresh.running) {
         setExisting(fresh)
@@ -187,46 +188,46 @@ export default function CreateServerWizard({onCreated}: Props) {
         {error && <div className="notice error">{error}</div>}
         <div className="field-row">
           <div className="field" style={{flex: 2}}>
-            <label>IP адрес сервера</label>
+            <label>{tr('IP адрес сервера', 'Server IP address')}</label>
             <input type="text" value={ssh.ip} onChange={(e) => setSsh({...ssh, ip: e.target.value.trim()})} placeholder="1.2.3.4" />
           </div>
           <div className="field">
-            <label>SSH порт</label>
+            <label>{tr('SSH порт', 'SSH port')}</label>
             <input type="number" value={ssh.port} onChange={(e) => setSsh({...ssh, port: Number(e.target.value)})} />
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label>Пользователь</label>
+            <label>{tr('Пользователь', 'Username')}</label>
             <input type="text" value={ssh.username} onChange={(e) => setSsh({...ssh, username: e.target.value})} />
           </div>
           <div className="field">
-            <label>Способ входа</label>
+            <label>{tr('Способ входа', 'Authentication method')}</label>
             <select value={ssh.authType} onChange={(e) => setSsh({...ssh, authType: e.target.value})}>
-              <option value="PASSWORD">Пароль</option>
-              <option value="SSH_KEY">SSH-ключ</option>
+              <option value="PASSWORD">{tr('Пароль', 'Password')}</option>
+              <option value="SSH_KEY">{tr('SSH-ключ', 'SSH key')}</option>
             </select>
           </div>
         </div>
         {ssh.authType === 'SSH_KEY' ? (
           <>
             <div className="field">
-              <label>Приватный ключ (OpenSSH)</label>
+              <label>{tr('Приватный ключ (OpenSSH)', 'Private key (OpenSSH)')}</label>
               <textarea value={ssh.sshKey} onChange={(e) => setSsh({...ssh, sshKey: e.target.value})} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" />
             </div>
             <div className="field">
-              <label>Passphrase ключа (если есть)</label>
+              <label>{tr('Passphrase ключа (если есть)', 'Key passphrase (if any)')}</label>
               <input type="password" value={ssh.password} onChange={(e) => setSsh({...ssh, password: e.target.value})} />
             </div>
           </>
         ) : (
           <div className="field">
-            <label>Пароль</label>
+            <label>{tr('Пароль', 'Password')}</label>
             <input type="password" value={ssh.password} onChange={(e) => setSsh({...ssh, password: e.target.value})} />
           </div>
         )}
         <div className="field">
-          <label>Пароль sudo (если отличается от пароля входа)</label>
+          <label>{tr('Пароль sudo (если отличается от пароля входа)', 'Sudo password (if different from login password)')}</label>
           <input type="password" value={ssh.sudoPassword} onChange={(e) => setSsh({...ssh, sudoPassword: e.target.value})} />
         </div>
         <div className="modal-actions">
@@ -235,7 +236,7 @@ export default function CreateServerWizard({onCreated}: Props) {
             disabled={busy || !ssh.ip || (ssh.authType === 'SSH_KEY' ? !ssh.sshKey : !ssh.password)}
             onClick={submitSsh}
           >
-            {busy ? 'Подключение…' : 'Далее'}
+            {busy ? tr('Подключение…', 'Connecting…') : tr('Далее', 'Next')}
           </button>
         </div>
       </>
@@ -245,23 +246,21 @@ export default function CreateServerWizard({onCreated}: Props) {
   if (step === 'existing') {
     return <>
       <div className="notice info">
-        Обнаружен установленный сервер. Повторная установка и перенастройка отключены.
+        {tr('Обнаружен установленный сервер. Повторная установка и перенастройка отключены.', 'An existing server was detected. Reinstallation and reconfiguration are disabled.')}
         {' '}{existing?.existingService} {existing?.version}
-        {' · '}{existing?.running ? 'Запущен' : 'Остановлен'}
+        {' · '}{existing?.running ? tr('Запущен', 'Running') : tr('Остановлен', 'Stopped')}
       </div>
-      <p>Укажите существующие параметры подключения и клиентский конфиг. Сохранение добавит только локальный профиль: настройки VPS и список разрешённых клиентов не изменятся.</p>
+      <p>{tr('Укажите параметры существующего подключения и его клиентский конфиг. Сохранение добавит только локальный профиль: настройки сервера и список клиентов не изменятся.', 'Enter the existing connection settings and its client configuration. Saving only adds a local profile: server settings and authorized clients will not change.')}</p>
       {error && <div className="notice error">{error}</div>}
-      {existingDraft && <>
-        <ServerForm value={existingDraft} onChange={setExistingDraft} />
-        <div className="field">
-          <label>Клиентский конфиг WireGuard/AmneziaWG (для режима VPN)</label>
-          <textarea value={existingDraft.wgClientConf || ''} onChange={e => setExistingDraft({
-            ...existingDraft, wgClientConf: e.target.value, connMode: e.target.value.trim() ? 'vpn' : 'relay',
-          } as backend.Server)} placeholder="[Interface]" />
-        </div>
-      </>}
+      {existingDraft && <ServerForm value={existingDraft} onChange={setExistingDraft} />}
+      {existingDraft && <div className="field">
+        <label>{tr('Клиентский конфиг WireGuard/AmneziaWG (для режима VPN)', 'WireGuard/AmneziaWG client configuration (for VPN mode)')}</label>
+        <textarea value={existingDraft.wgClientConf || ''} onChange={e => setExistingDraft({
+          ...existingDraft, wgClientConf: e.target.value, connMode: e.target.value.trim() ? 'vpn' : 'relay',
+        } as backend.Server)} placeholder="[Interface]" />
+      </div>}
       <div className="modal-actions">
-        <button className="btn" disabled={busy} onClick={() => setStep('ssh')}>Назад</button>
+        <button className="btn" disabled={busy} onClick={() => setStep('ssh')}>{tr('Назад', 'Back')}</button>
         <button className="btn primary" disabled={busy || !existingDraft?.peer} onClick={async () => {
           if (!existingDraft) return
           setBusy(true)
@@ -269,7 +268,7 @@ export default function CreateServerWizard({onCreated}: Props) {
           try { onCreated(await SaveServer(existingDraft)) }
           catch (e) { setError(String(e)) }
           finally { setBusy(false) }
-        }}>Сохранить</button>
+        }}>{tr('Сохранить', 'Save')}</button>
       </div>
     </>
   }
@@ -279,16 +278,16 @@ export default function CreateServerWizard({onCreated}: Props) {
       <>
         {error && <div className="notice error">{error}</div>}
         <div className="field">
-          <label>Имя сервера</label>
+          <label>{tr('Имя сервера', 'Server name')}</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={ssh.ip} />
         </div>
         <div className="field">
-          <label>Ваша ссылка на звонок VK Calls (можно добавить позже)</label>
+          <label>{tr('Ваша ссылка на звонок VK Calls (можно добавить позже)', 'Your VK Calls link (can be added later)')}</label>
           <input type="text" value={vkLink} onChange={(e) => setVkLink(e.target.value)} placeholder="https://vk.ru/call/join/..." />
         </div>
         <div className="field-row">
           <div className="field">
-            <label>Профиль обфускации</label>
+            <label>{tr('Профиль обфускации', 'Obfuscation profile')}</label>
             <select value={obfProfile} onChange={(e) => setObfProfile(e.target.value)}>
               {OBF_PROFILES.filter((p) => p !== 'none').map((p) => (
                 <option key={p} value={p}>
@@ -298,24 +297,23 @@ export default function CreateServerWizard({onCreated}: Props) {
             </select>
           </div>
           <div className="field">
-            <label>Внешний порт (-listen)</label>
+            <label>{tr('Внешний порт (-listen)', 'External port (-listen)')}</label>
             <input type="number" value={listenPort} onChange={(e) => setListenPort(Number(e.target.value))} />
           </div>
           <div className="field">
-            <label>Порт WireGuard{wgPortExisting ? ' (уже настроен)' : ''}</label>
+            <label>{tr('Порт WireGuard', 'WireGuard port')}{wgPortExisting ? tr(' (уже настроен)', ' (already configured)') : ''}</label>
             <input type="number" value={wgPort} disabled={wgPortExisting} onChange={(e) => setWgPort(Number(e.target.value))} />
           </div>
         </div>
         <div className="notice info">
-          Развернём free-turn-proxy и интерфейс WireGuard (ft-wg0) на сервере, запустим их с обфускацией и добавим
-          вас первым разрешённым клиентом.
+          {tr('Развернём free-turn-proxy и интерфейс WireGuard (ft-wg0) на сервере, запустим их с обфускацией и добавим вас первым разрешённым клиентом.', 'We will deploy free-turn-proxy and the WireGuard interface (ft-wg0), start them with obfuscation and add you as the first authorized client.')}
         </div>
         <div className="modal-actions">
           <button className="btn" onClick={() => setStep('ssh')}>
-            Назад
+            {tr('Назад', 'Back')}
           </button>
           <button className="btn primary" onClick={runProvision}>
-            Развернуть
+            {tr('Развернуть', 'Deploy')}
           </button>
         </div>
       </>
@@ -347,10 +345,10 @@ export default function CreateServerWizard({onCreated}: Props) {
         {error && (
           <div className="modal-actions">
             <button className="btn" onClick={() => setStep('config')}>
-              Назад
+              {tr('Назад', 'Back')}
             </button>
             <button className="btn primary" onClick={runProvision}>
-              Повторить
+              {tr('Повторить', 'Retry')}
             </button>
           </div>
         )}
@@ -361,18 +359,18 @@ export default function CreateServerWizard({onCreated}: Props) {
   // done
   return (
     <>
-      <div className="notice info">Сервер развёрнут и запущен.</div>
+      <div className="notice info">{tr('Сервер развёрнут и запущен.', 'Server deployed and running.')}</div>
       {result && (
         <>
           <div className="field">
-            <label>Конфиг WireGuard/AmneziaWG для отдельного клиента (Endpoint уже указывает на локальный релей)</label>
+            <label>{tr('Конфиг WireGuard/AmneziaWG для отдельного клиента (Endpoint уже указывает на локальный релей)', 'WireGuard/AmneziaWG configuration for an external client (Endpoint already points to the local relay)')}</label>
             <textarea readOnly value={result.wgConf} onClick={(e) => (e.target as HTMLTextAreaElement).select()} />
           </div>
         </>
       )}
       <div className="modal-actions">
         <button className="btn primary" onClick={() => result && onCreated(result.server)}>
-          Готово
+          {tr('Готово', 'Done')}
         </button>
       </div>
     </>

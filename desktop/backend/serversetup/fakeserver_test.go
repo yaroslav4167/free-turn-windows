@@ -60,6 +60,7 @@ func newFakeSSHServer(t *testing.T, handler func(cmd string, stdin []byte) (stri
 	s := &fakeSSHServer{ln: ln, cfg: cfg, handler: handler, done: make(chan struct{})}
 	go s.acceptLoop()
 	t.Cleanup(s.close)
+	t.Cleanup(CloseConnections)
 	return s
 }
 

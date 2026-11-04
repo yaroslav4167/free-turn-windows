@@ -2,7 +2,8 @@ package backend
 
 import "time"
 
-// Sample totals independently of mobile.GetState's read-to-read rate counters.
+// trafficMeter samples cumulative counters, independently of mobile.GetState's
+// read-to-read rates. Multiple UI readers must not consume each other's sample.
 type trafficMeter struct {
 	at             time.Time
 	tx, rx         int64

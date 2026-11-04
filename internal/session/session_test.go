@@ -155,6 +155,38 @@ func TestWatchCaptchaSuspendsTimeout(t *testing.T) {
 	}
 }
 
+func TestCaptchaOnAnotherLinkKeepsHealthyStreamsConnected(t *testing.T) {
+	s := newTestSession(t, Options{ConnectTimeout: 20 * time.Millisecond, StatusInterval: 2 * time.Millisecond}, func() bool { return true })
+	s.connected.Store(1)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- s.watch(ctx, cancel) }()
+	defer func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Errorf("watch: %v", err)
+		}
+	}()
+	wait := func(phase Phase, streams int) {
+		t.Helper()
+		deadline := time.Now().Add(time.Second)
+		for time.Now().Before(deadline) {
+			if snap := s.Snapshot(); snap.Phase == phase && snap.Streams == streams {
+				return
+			}
+			time.Sleep(time.Millisecond)
+		}
+		t.Fatalf("snapshot = %+v, want %s with %d streams", s.Snapshot(), phase, streams)
+	}
+	// One link is already usable while another is waiting for its captcha.
+	wait(PhaseConnected, 1)
+	// Only losing every usable stream makes captcha a blocking session phase.
+	s.connected.Store(0)
+	wait(PhaseCaptcha, 0)
+	s.connected.Store(1)
+	wait(PhaseConnected, 1)
+}
+
 type recordingObserver struct {
 	mu     sync.Mutex
 	phases []Phase

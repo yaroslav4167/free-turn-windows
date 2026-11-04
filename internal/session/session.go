@@ -391,7 +391,8 @@ func (s *Session) watch(ctx context.Context, cancel context.CancelFunc) error {
 
 			if s.captchaActive() {
 				deadline = time.Now().Add(s.opts.ConnectTimeout)
-				// Verification for another link must not hide working streams.
+				// A second link may need verification while the first still carries
+				// traffic. Captcha is a blocking phase only with no usable streams.
 				if n == 0 {
 					s.setStatus(PhaseCaptcha, n, "")
 					continue

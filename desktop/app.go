@@ -4,11 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend"
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/serversetup"
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/wintunnel"
+	"github.com/samosvalishe/free-turn-proxy/desktop/integration"
+	"github.com/samosvalishe/free-turn-proxy/desktop/locale"
+	"github.com/samosvalishe/free-turn-proxy/desktop/tray"
+	"github.com/samosvalishe/free-turn-proxy/desktop/updates"
 	"github.com/samosvalishe/free-turn-proxy/internal/wire/rtpopus"
 	"github.com/samosvalishe/free-turn-proxy/mobile"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -23,10 +30,23 @@ var errNoSSHConfig = errors.New("для этого сервера нет сох�
 // App is the Wails-bound facade the frontend calls into. It stays thin - all
 // real logic lives in backend, so it can be unit-tested without a Wails runtime.
 type App struct {
-	ctx    context.Context
-	store  *backend.Store
-	engine *backend.Engine
-	tray   interface{ Close() }
+	ctx               context.Context
+	store             *backend.Store
+	engine            *backend.Engine
+	desktopMu         sync.Mutex
+	preferences       integration.Preferences
+	renderingNote     string
+	tray              *tray.Tray
+	trayError         string
+	quitting          bool
+	autoConnectOnce   sync.Once
+	autoConnectError  string
+	updater           *updates.Manager
+	updateCancel      context.CancelFunc
+	updateContext     context.Context
+	updateInstallMu   sync.Mutex
+	updateInstallGate *os.File
+	updateResult      integration.UpdateResult
 }
 
 func NewApp() *App {
@@ -36,20 +56,43 @@ func NewApp() *App {
 		// fix from inside the app, so fail fast rather than run half-alive.
 		panic(fmt.Errorf("open server store: %w", err))
 	}
-	return &App{store: store, engine: backend.NewEngine(store)}
+	prefs, err := integration.LoadPreferences()
+	if err != nil {
+		prefs = integration.Preferences{CloseToTray: false}
+	}
+	language := prefs.Language
+	if !locale.Supported(language) {
+		language = integration.SystemLanguage()
+	}
+	locale.Set(language)
+	return &App{
+		store: store, engine: backend.NewEngine(store), preferences: prefs,
+		updater:      updates.New(desktopVersion, runtime.GOARCH, updateRepository),
+		updateResult: integration.LoadUpdateResult(),
+	}
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.engine.SetContext(ctx)
+	a.startTray()
+	a.startUpdateChecks(ctx)
 }
 
 func (a *App) shutdown(ctx context.Context) {
-	if a.tray != nil {
-		a.tray.Close()
-		a.tray = nil
+	if a.updateCancel != nil {
+		a.updateCancel()
 	}
 	a.engine.Disconnect()
+	if a.tray != nil {
+		a.tray.Close()
+	}
+	a.desktopMu.Lock()
+	if a.updateInstallGate != nil {
+		_ = a.updateInstallGate.Close()
+		a.updateInstallGate = nil
+	}
+	a.desktopMu.Unlock()
 }
 
 // setupProgress forwards one progress line from a running server-side job to
@@ -60,11 +103,6 @@ func (a *App) setupProgress(line string) {
 	}
 }
 
-// Unexport from Wails binding
-func (a *App) setTray(t interface{ Close() }) {
-	a.tray = t
-}
-
 func (a *App) ShowWindow() {
 	if a.ctx != nil {
 		wailsruntime.WindowShow(a.ctx)
@@ -73,6 +111,9 @@ func (a *App) ShowWindow() {
 }
 
 func (a *App) Quit() {
+	a.desktopMu.Lock()
+	a.quitting = true
+	a.desktopMu.Unlock()
 	if a.ctx != nil {
 		wailsruntime.Quit(a.ctx)
 	}
@@ -136,6 +177,10 @@ func (a *App) Status() backend.Status {
 	return a.engine.Status()
 }
 
+func (a *App) MeasurePing(serverID string) (backend.PingResult, error) {
+	return a.engine.MeasurePing(serverID)
+}
+
 func (a *App) ConfigCommand(id string) (string, error) {
 	srv, ok := a.store.Get(id)
 	if !ok {
@@ -157,7 +202,7 @@ func (a *App) CoreVersion() string {
 }
 
 // VPNAvailable reports whether this build can run the embedded, one-click
-// VPN mode (true on Windows) as opposed to relay-only.
+// VPN mode (true on Linux and Windows) as opposed to relay-only.
 func (a *App) VPNAvailable() bool {
 	return wintunnel.Available()
 }

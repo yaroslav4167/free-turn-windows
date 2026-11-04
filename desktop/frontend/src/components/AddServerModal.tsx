@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
 import {backend, ImportLink, NewServer, ParseLink, SaveServer} from '../api'
 import CreateServerWizard from './CreateServerWizard'
+import {tr} from '../language'
 
 interface Props {
   onClose: () => void
@@ -65,16 +66,16 @@ export default function AddServerModal({onClose, onCreated}: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Добавить сервер</h2>
+        <h2>{tr('Добавить сервер', 'Add server')}</h2>
         <div className="tabs">
           <div className={'tab' + (tab === 'link' ? ' active' : '')} onClick={() => setTab('link')}>
-            Вставить ссылку
+            {tr('Вставить ссылку', 'Paste a link')}
           </div>
           <div className={'tab' + (tab === 'manual' ? ' active' : '')} onClick={() => setTab('manual')}>
-            Вручную
+            {tr('Вручную', 'Manual')}
           </div>
           <div className={'tab' + (tab === 'deploy' ? ' active' : '')} onClick={() => setTab('deploy')}>
-            Новый VPS
+            {tr('Новый VPS', 'New VPS')}
           </div>
         </div>
 
@@ -84,37 +85,37 @@ export default function AddServerModal({onClose, onCreated}: Props) {
 
         {tab !== 'deploy' && (
           <div className="field">
-            <label>Имя</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Мой сервер" />
+            <label>{tr('Имя', 'Name')}</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('Мой сервер', 'My server')} />
           </div>
         )}
 
         {tab === 'link' && (
           <>
             <div className="field">
-              <label>freeturn:// ссылка от владельца сервера</label>
+              <label>{tr('freeturn:// ссылка от владельца сервера', 'freeturn:// link from the server owner')}</label>
               <textarea value={linkText} onChange={(e) => setLinkText(e.target.value)} placeholder="freeturn://..." />
             </div>
             <div className="field">
-              <label>Ваша ссылка на звонок VK Calls</label>
+              <label>{tr('Ваша ссылка на звонок VK Calls', 'Your VK Calls link')}</label>
               <input type="text" value={vkLink} onChange={(e) => setVkLink(e.target.value)} placeholder="https://vk.ru/call/join/..." />
             </div>
             {preview && (
               <div className="notice info">
-                peer {preview.peer}, обфускация {preview.obfProfile || 'none'}
-                {preview.name ? `, имя владельца: ${preview.name}` : ''}
+                peer {preview.peer}, {tr('обфускация', 'obfuscation')} {preview.obfProfile || 'none'}
+                {preview.name ? tr(', имя владельца: {name}', {name: preview.name}) : ''}
                 <br />
                 {preview.wgConf
-                  ? 'В ссылке есть WireGuard-конфиг — после импорта подключение в один клик (встроенный VPN).'
-                  : 'WireGuard-конфига в ссылке нет — будет режим реле (нужен отдельный WireGuard/AmneziaWG-клиент).'}
+                  ? tr('В ссылке есть WireGuard-конфиг — после импорта подключение в один клик (встроенный VPN).', 'The link includes a WireGuard configuration — connect with one click after import (built-in VPN).')
+                  : tr('WireGuard-конфига в ссылке нет — будет режим реле (нужен отдельный WireGuard/AmneziaWG-клиент).', 'No WireGuard configuration in the link — relay mode requires a separate WireGuard/AmneziaWG client.')}
               </div>
             )}
             <div className="modal-actions">
               <button className="btn" onClick={onClose}>
-                Отмена
+                {tr('Отмена', 'Cancel')}
               </button>
               <button className="btn primary" disabled={!preview || busy} onClick={submitLink}>
-                Импортировать
+                {tr('Импортировать', 'Import')}
               </button>
             </div>
           </>
@@ -122,19 +123,19 @@ export default function AddServerModal({onClose, onCreated}: Props) {
         {tab === 'manual' && (
           <>
             <div className="field">
-              <label>Адрес сервера (peer), host:port</label>
+              <label>{tr('Адрес сервера (peer), host:port', 'Server address (peer), host:port')}</label>
               <input type="text" value={peer} onChange={(e) => setPeer(e.target.value)} placeholder="1.2.3.4:56000" />
             </div>
             <div className="field">
-              <label>Ссылка на звонок VK Calls</label>
+              <label>{tr('Ссылка на звонок VK Calls', 'VK Calls link')}</label>
               <input type="text" value={vkLink} onChange={(e) => setVkLink(e.target.value)} placeholder="https://vk.ru/call/join/..." />
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={onClose}>
-                Отмена
+                {tr('Отмена', 'Cancel')}
               </button>
               <button className="btn primary" disabled={!peer.trim() || busy} onClick={submitManual}>
-                Создать
+                {tr('Создать', 'Create')}
               </button>
             </div>
           </>

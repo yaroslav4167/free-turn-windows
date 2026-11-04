@@ -1,4 +1,5 @@
-// Shared Linux/Windows oval-first expressive loader geometry.
+// An original, Material Expressive-inspired indicator: an oval and soft three-,
+// four-, five- and six-lobed shapes continuously blend while rotating.
 export function expressiveLoaderFrame(seconds: number) {
   const time = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
   const shapes = [0, 3, 4, 5, 6]

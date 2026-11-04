@@ -31,15 +31,15 @@ type CoreConfig struct {
 	DTLSFingerprint string     `json:"dtlsFingerprint,omitempty"`
 	SubURL          string     `json:"subUrl"`
 	Provider        string     `json:"provider"`
-	Routes   bool       `json:"routes"`
-	TURN     CoreTurn   `json:"turn"`
-	Proxy    CoreProxy  `json:"proxy"`
-	VK       CoreVK     `json:"vk"`
-	Obf      CoreObf    `json:"obf"`
-	DNS      CoreDNS    `json:"dns"`
-	Log      CoreLog    `json:"log"`
-	KCP      KCPProfile `json:"kcp"`
-	Tunnel   CoreTunnel `json:"tunnel"`
+	Routes          bool       `json:"routes"`
+	TURN            CoreTurn   `json:"turn"`
+	Proxy           CoreProxy  `json:"proxy"`
+	VK              CoreVK     `json:"vk"`
+	Obf             CoreObf    `json:"obf"`
+	DNS             CoreDNS    `json:"dns"`
+	Log             CoreLog    `json:"log"`
+	KCP             KCPProfile `json:"kcp"`
+	Tunnel          CoreTunnel `json:"tunnel"`
 }
 
 type CoreTurn struct {
@@ -106,7 +106,7 @@ func (s Server) ToCoreConfig() CoreConfig {
 		ClientID:        s.ClientID,
 		DTLSFingerprint: s.DTLSFingerprint,
 		Provider:        s.Provider,
-		Routes:   s.Routes,
+		Routes:          s.Routes,
 		TURN: CoreTurn{
 			N:         s.N,
 			Transport: s.Transport,

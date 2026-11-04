@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=FreeTurn
+GenericName=VPN client
+GenericName[ru]=VPN-клиент
+Comment=TURN-based VPN and relay client
+Comment[ru]=VPN и TURN-реле
+Exec=freeturn-desktop
+Icon=freeturn
+Terminal=false
+Categories=Network;Security;
+Keywords=VPN;WireGuard;AmneziaWG;TURN;
+StartupNotify=true
+StartupWMClass=freeturn
+X-FreeTurn-Managed=true

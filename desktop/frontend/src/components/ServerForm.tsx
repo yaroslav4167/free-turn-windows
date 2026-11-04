@@ -1,4 +1,5 @@
 import {backend, DNS_MODES, GenerateClientID, GenerateObfKey, MODES, OBF_PROFILES, TRANSPORTS} from '../api'
+import {tr} from '../language'
 
 interface Props {
   value: backend.Server
@@ -12,19 +13,19 @@ export default function ServerForm({value: s, onChange}: Props) {
   return (
     <>
       <div className="field-group">
-        <h3>Подключение</h3>
+        <h3>{tr('Подключение', 'Connection')}</h3>
         <div className="field-row">
           <div className="field">
-            <label>Имя</label>
-            <input type="text" value={s.name} onChange={(e) => patch({name: e.target.value})} placeholder="Мой сервер" />
+            <label>{tr('Имя', 'Name')}</label>
+            <input type="text" value={s.name} onChange={(e) => patch({name: e.target.value})} placeholder={tr('Мой сервер', 'My server')} />
           </div>
           <div className="field">
-            <label>Адрес сервера (peer), host:port</label>
+            <label>{tr('Адрес сервера (peer), host:port', 'Server address (peer), host:port')}</label>
             <input type="text" value={s.peer} onChange={(e) => patch({peer: e.target.value})} placeholder="1.2.3.4:56000" />
           </div>
         </div>
         <div className="field">
-          <label>Ссылки на звонки VK Calls (по одной в строке)</label>
+          <label>{tr('Ссылки на звонки VK Calls (по одной в строке)', 'VK Calls links (one per line)')}</label>
           <textarea
             value={(s.vkLinks ?? []).join('\n')}
             onChange={(e) => patch({vkLinks: e.target.value.split('\n')})}
@@ -34,10 +35,10 @@ export default function ServerForm({value: s, onChange}: Props) {
       </div>
 
       <div className="field-group">
-        <h3>Обфускация</h3>
+        <h3>{tr('Обфускация', 'Obfuscation')}</h3>
         <div className="field-row">
           <div className="field">
-            <label>Профиль</label>
+            <label>{tr('Профиль', 'Profile')}</label>
             <select value={s.obfProfile} onChange={(e) => patch({obfProfile: e.target.value})}>
               {OBF_PROFILES.map((p) => (
                 <option key={p} value={p}>
@@ -47,7 +48,7 @@ export default function ServerForm({value: s, onChange}: Props) {
             </select>
           </div>
           <div className="field" style={{flex: 2}}>
-            <label>Ключ (64 hex)</label>
+            <label>{tr('Ключ (64 hex)', 'Key (64 hex)')}</label>
             <div className="inline-actions">
               <input
                 type="text"
@@ -62,14 +63,14 @@ export default function ServerForm({value: s, onChange}: Props) {
                 disabled={s.obfProfile === 'none'}
                 onClick={() => GenerateObfKey().then((key) => patch({obfKey: key}))}
               >
-                Сгенерировать
+                {tr('Сгенерировать', 'Generate')}
               </button>
             </div>
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label>Пейсинг обфускации, мс (0 = выкл)</label>
+            <label>{tr('Пейсинг обфускации, мс (0 = выкл)', 'Obfuscation pacing, ms (0 = off)')}</label>
             <input
               type="number"
               min={0}
@@ -83,10 +84,10 @@ export default function ServerForm({value: s, onChange}: Props) {
       </div>
 
       <div className="field-group">
-        <h3>Транспорт и потоки</h3>
+        <h3>{tr('Транспорт и потоки', 'Transport and streams')}</h3>
         <div className="field-row">
           <div className="field">
-            <label>Транспорт до TURN</label>
+            <label>{tr('Транспорт до TURN', 'TURN transport')}</label>
             <select value={s.transport} onChange={(e) => patch({transport: e.target.value})}>
               {TRANSPORTS.map((t) => (
                 <option key={t} value={t}>
@@ -96,7 +97,7 @@ export default function ServerForm({value: s, onChange}: Props) {
             </select>
           </div>
           <div className="field">
-            <label>Режим туннеля</label>
+            <label>{tr('Режим туннеля', 'Tunnel mode')}</label>
             <select value={s.mode} onChange={(e) => patch({mode: e.target.value})}>
               {MODES.map((m) => (
                 <option key={m} value={m}>
@@ -106,17 +107,17 @@ export default function ServerForm({value: s, onChange}: Props) {
             </select>
           </div>
           <div className="field">
-            <label>Локальный listen</label>
+            <label>{tr('Локальный listen', 'Local listen address')}</label>
             <input type="text" value={s.listen} onChange={(e) => patch({listen: e.target.value})} />
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label>TURN-потоков (-n)</label>
+            <label>{tr('TURN-потоков (-n)', 'TURN streams (-n)')}</label>
             <input type="number" min={1} value={s.n} onChange={(e) => patch({n: Number(e.target.value)})} />
           </div>
           <div className="field">
-            <label>Потоков на VK-креды</label>
+            <label>{tr('Потоков на VK-креды', 'Streams per VK credential')}</label>
             <input
               type="number"
               min={1}
@@ -129,7 +130,7 @@ export default function ServerForm({value: s, onChange}: Props) {
 
       {s.mode === 'tcp' && (
         <div className="field-group">
-          <h3>KCP (ARQ для tcp-режима)</h3>
+          <h3>{tr('KCP (ARQ для tcp-режима)', 'KCP (ARQ for TCP mode)')}</h3>
           <div className="field-row">
             <div className="field">
               <label>nodelay</label>
@@ -177,7 +178,7 @@ export default function ServerForm({value: s, onChange}: Props) {
         <h3>DNS</h3>
         <div className="field-row">
           <div className="field">
-            <label>Резолвер клиента</label>
+            <label>{tr('Резолвер клиента', 'Client resolver')}</label>
             <select value={s.dnsMode} onChange={(e) => patch({dnsMode: e.target.value})}>
               {DNS_MODES.map((m) => (
                 <option key={m} value={m}>
@@ -187,7 +188,7 @@ export default function ServerForm({value: s, onChange}: Props) {
             </select>
           </div>
           <div className="field" style={{flex: 2}}>
-            <label>Свои DNS-серверы (через запятую)</label>
+            <label>{tr('Свои DNS-серверы (через запятую)', 'Custom DNS servers (comma-separated)')}</label>
             <input
               type="text"
               value={(s.dnsServers ?? []).join(', ')}
@@ -199,29 +200,29 @@ export default function ServerForm({value: s, onChange}: Props) {
       </div>
 
       <div className="field-group">
-        <h3>Дополнительно</h3>
+        <h3>{tr('Дополнительно', 'Advanced')}</h3>
         <div className="field-row">
           <div className="field" style={{flex: 2}}>
             <label>Client ID</label>
             <div className="inline-actions">
               <input type="text" className="mono" value={s.clientId} onChange={(e) => patch({clientId: e.target.value.trim()})} />
               <button className="btn small" onClick={() => GenerateClientID().then((id) => patch({clientId: id}))}>
-                Сгенерировать
+                {tr('Сгенерировать', 'Generate')}
               </button>
             </div>
           </div>
         </div>
         <label className="checkbox-row">
           <input type="checkbox" checked={s.manualCaptcha} onChange={(e) => patch({manualCaptcha: e.target.checked})} />
-          Ручная VK captcha
+          {tr('Ручная VK captcha', 'Manual VK captcha')}
         </label>
         <label className="checkbox-row">
           <input type="checkbox" checked={s.routes} onChange={(e) => patch({routes: e.target.checked})} />
-          Автоматические маршруты к TURN-серверам (нужны права администратора)
+          {tr('Автоматические маршруты к TURN-серверам (нужны права администратора)', 'Automatic TURN server routes (administrator authorization required)')}
         </label>
         <label className="checkbox-row">
           <input type="checkbox" checked={s.debug} onChange={(e) => patch({debug: e.target.checked})} />
-          Подробные debug-логи
+          {tr('Подробные debug-логи', 'Verbose debug logs')}
         </label>
       </div>
     </>

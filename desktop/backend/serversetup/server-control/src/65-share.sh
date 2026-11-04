@@ -52,7 +52,7 @@ _peers_flush() {
 # (без форк-пайпов tr|sed на каждую строку - сотни форков на больших списках).
 peers_json() {
     if ! wg_present || ! wg_is_ours; then printf '[]'; return 0; fi
-    local hs="" xfer="" _PEERS_OUT="" first=1 in_peer=0 pub="" name="" ip="" raw line val
+    local hs="" xfer="" _PEERS_OUT="" first=1 in_peer=0 pub="" name="" ip="" raw line val client_name=""
     if command -v wg >/dev/null 2>&1; then
         hs=$(wg show "$WG_IFACE" latest-handshakes 2>/dev/null || true)
         xfer=$(wg show "$WG_IFACE" transfer 2>/dev/null || true)
@@ -68,6 +68,13 @@ peers_json() {
                 ;;
             "# ft-user: "*)
                 if [ "$in_peer" = 1 ]; then name="${line#\# ft-user: }"; fi ;;
+            "# client: "*)
+                # Older/manual installers store the readable name instead of
+                # the base64 marker. Prefer ft-user when both are present.
+                if [ "$in_peer" = 1 ] && [ -z "$name" ]; then
+                    client_name="${line#\# client: }"
+                    name=$(printf '%s' "$client_name" | base64 | tr -d '\r\n')
+                fi ;;
             PublicKey*=*)
                 if [ "$in_peer" = 1 ]; then val=${line#*=}; pub=${val// /}; fi ;;
             AllowedIPs*=*)

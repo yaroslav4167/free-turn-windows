@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/notify"
+	"github.com/samosvalishe/free-turn-proxy/desktop/backend/routing"
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/wintunnel"
 	"github.com/samosvalishe/free-turn-proxy/mobile"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -49,11 +51,13 @@ type Engine struct {
 	ctx   context.Context
 	store *Store
 
-	mu         sync.Mutex
-	serverID   string
-	planCancel context.CancelFunc
-	captchaURL string
-	traffic    trafficMeter
+	mu             sync.Mutex
+	serverID       string
+	traffic        trafficMeter
+	planCancel     context.CancelFunc
+	captchaURL     string
+	pingCancel     context.CancelFunc
+	pingGeneration uint64
 }
 
 func NewEngine(store *Store) *Engine {
@@ -106,11 +110,21 @@ func (e *Engine) Connect(srv Server) error {
 	if verr := mobile.ValidateConfig(cfg); verr != "" {
 		return errors.New(verr)
 	}
+	var routeOverride string
 	var exclusions []string
 	if vpn {
 		exclusions, err = resolveExclusions(ctx, srv, net.DefaultResolver)
 		if err != nil {
 			return fmt.Errorf("VPN endpoints: %w", err)
+		}
+		exclusions = routeExclusions(runtime.GOOS, exclusions)
+		params, parseErr := mobile.ParseTunnelConfig(srv.WgClientConf, DefaultTunnelMTU)
+		if parseErr != nil {
+			return parseErr
+		}
+		routeOverride, err = routing.Build(ctx, params.AllowedIPs, params.DNS, srv.RoutingLists, nil, exclusions...)
+		if err != nil {
+			return fmt.Errorf("списки маршрутизации VPN: %w", err)
 		}
 	}
 	if err := ctx.Err(); err != nil {
@@ -133,7 +147,7 @@ func (e *Engine) Connect(srv Server) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		return wintunnel.Connect(cfg, srv.WgClientConf, DefaultTunnelMTU, exclusions...)
+		return wintunnel.ConnectWithRoutes(cfg, srv.WgClientConf, DefaultTunnelMTU, routeOverride, exclusions...)
 	}
 	return mobile.Start(cfg)
 }
@@ -151,6 +165,7 @@ func (e *Engine) Disconnect() {
 func (e *Engine) forceStop() {
 	e.mu.Lock()
 	e.captchaURL = ""
+	e.cancelPingLocked()
 	e.mu.Unlock()
 	mobile.Stop()
 	wintunnel.Disconnect()
@@ -160,14 +175,20 @@ func (e *Engine) Status() Status {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	snap := mobile.GetState()
+	serverID := e.serverID
 	txRate, rxRate := e.traffic.sample(snap.TxTotal, snap.RxTotal, time.Now())
-	if snap.State != "connected" {
+	if snap.State == mobile.StateIdle || snap.State == mobile.StateError {
+		e.traffic = trafficMeter{}
 		txRate, rxRate = 0, 0
+	}
+	captchaURL := e.captchaURL
+	if snap.State == mobile.StateIdle || snap.State == mobile.StateError {
+		captchaURL = ""
 	}
 	return Status{
 		State: snap.State, Streams: snap.Streams, Total: snap.Total, ErrMsg: snap.ErrMsg,
 		TxRate: txRate, RxRate: rxRate, TxTotal: snap.TxTotal, RxTotal: snap.RxTotal,
-		ServerID: e.serverID, CaptchaURL: e.captchaURL,
+		ServerID: serverID, CaptchaURL: captchaURL,
 	}
 }
 
@@ -188,14 +209,17 @@ func (e *Engine) ConfigCommand(srv Server) (string, error) {
 // --- mobile.EventSink ---
 
 func (e *Engine) OnState(state string, streams, total int, errMsg string) {
+	if state == mobile.StateIdle || state == mobile.StateError {
+		e.mu.Lock()
+		e.captchaURL = ""
+		e.cancelPingLocked()
+		e.mu.Unlock()
+	}
 	if e.ctx == nil {
 		return
 	}
 	e.mu.Lock()
 	serverID := e.serverID
-	if state == "idle" || state == "error" {
-		e.captchaURL = ""
-	}
 	captchaURL := e.captchaURL
 	e.mu.Unlock()
 	wailsruntime.EventsEmit(e.ctx, eventState, Status{State: state, Streams: streams, Total: total, ErrMsg: errMsg, ServerID: serverID, CaptchaURL: captchaURL})
@@ -216,10 +240,23 @@ func (e *Engine) OnCaptcha(url string) {
 		return
 	}
 	wailsruntime.EventsEmit(e.ctx, eventCaptcha, url)
+	// Persist in every snapshot and push immediately. Captcha can coexist with
+	// connected streams, and a newly mounted frontend may miss the one-shot event.
 	wailsruntime.EventsEmit(e.ctx, eventStats, e.Status())
 	if url != "" {
 		go func() {
-			_ = notify.ShowCaptchaNotification(url, nil)
+			_ = notify.ShowCaptchaNotification(url, func() {
+				e.openCurrentCaptcha(url, func() { wailsruntime.BrowserOpenURL(e.ctx, url) })
+			})
 		}()
+	}
+}
+
+func (e *Engine) openCurrentCaptcha(url string, open func()) {
+	e.mu.Lock()
+	current := url != "" && e.captchaURL == url
+	e.mu.Unlock()
+	if current && open != nil {
+		open()
 	}
 }

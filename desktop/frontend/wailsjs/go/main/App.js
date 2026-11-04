@@ -6,6 +6,10 @@ export function BuildLink(arg1) {
   return window['go']['main']['App']['BuildLink'](arg1);
 }
 
+export function CheckForUpdates() {
+  return window['go']['main']['App']['CheckForUpdates']();
+}
+
 export function ConfigCommand(arg1) {
   return window['go']['main']['App']['ConfigCommand'](arg1);
 }
@@ -22,12 +26,24 @@ export function CoreVersion() {
   return window['go']['main']['App']['CoreVersion']();
 }
 
+export function CreateDesktopShortcut() {
+  return window['go']['main']['App']['CreateDesktopShortcut']();
+}
+
 export function DeleteServer(arg1) {
   return window['go']['main']['App']['DeleteServer'](arg1);
 }
 
+export function DesktopSettings() {
+  return window['go']['main']['App']['DesktopSettings']();
+}
+
 export function Disconnect() {
   return window['go']['main']['App']['Disconnect']();
+}
+
+export function DownloadUpdate() {
+  return window['go']['main']['App']['DownloadUpdate']();
 }
 
 export function GenerateClientID() {
@@ -42,8 +58,28 @@ export function ImportLink(arg1, arg2) {
   return window['go']['main']['App']['ImportLink'](arg1, arg2);
 }
 
+export function InstallDesktop() {
+  return window['go']['main']['App']['InstallDesktop']();
+}
+
+export function InstallUpdate() {
+  return window['go']['main']['App']['InstallUpdate']();
+}
+
+export function InstallVPNHelper() {
+  return window['go']['main']['App']['InstallVPNHelper']();
+}
+
 export function ListServers() {
   return window['go']['main']['App']['ListServers']();
+}
+
+export function MinimiseToTray() {
+  return window['go']['main']['App']['MinimiseToTray']();
+}
+
+export function MeasurePing(arg1) {
+  return window['go']['main']['App']['MeasurePing'](arg1);
 }
 
 export function NewServer() {
@@ -56,6 +92,10 @@ export function ParseLink(arg1) {
 
 export function Quit() {
   return window['go']['main']['App']['Quit']();
+}
+
+export function RemoveVPNHelper() {
+  return window['go']['main']['App']['RemoveVPNHelper']();
 }
 
 export function SaveServer(arg1) {
@@ -98,6 +138,26 @@ export function ServerUninstall(arg1, arg2) {
   return window['go']['main']['App']['ServerUninstall'](arg1, arg2);
 }
 
+export function SetAutoCheckUpdates(arg1) {
+  return window['go']['main']['App']['SetAutoCheckUpdates'](arg1);
+}
+
+export function SetAutoConnect(arg1, arg2) {
+  return window['go']['main']['App']['SetAutoConnect'](arg1, arg2);
+}
+
+export function SetAutostart(arg1) {
+  return window['go']['main']['App']['SetAutostart'](arg1);
+}
+
+export function SetCloseToTray(arg1) {
+  return window['go']['main']['App']['SetCloseToTray'](arg1);
+}
+
+export function SetLanguage(arg1) {
+  return window['go']['main']['App']['SetLanguage'](arg1);
+}
+
 export function SetupCreateServer(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetupCreateServer'](arg1, arg2, arg3);
 }
@@ -128,6 +188,10 @@ export function ShowWindow() {
 
 export function Status() {
   return window['go']['main']['App']['Status']();
+}
+
+export function UpdateState() {
+  return window['go']['main']['App']['UpdateState']();
 }
 
 export function VPNAvailable() {

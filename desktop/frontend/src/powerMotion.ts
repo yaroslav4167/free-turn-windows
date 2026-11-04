@@ -5,13 +5,15 @@ export interface PowerMotion {
   speed: number
 }
 
-// Analytic spring and exponential speed easing are frame-rate independent.
+// Exponential easing is frame-rate independent; retain the current angle when
+// stopping so the silhouette never snaps back to its original orientation.
 export function advancePowerMotion(current: PowerMotion, connected: boolean, busy: boolean, seconds: number): PowerMotion {
   const dt = Math.max(0, Math.min(0.1, seconds))
   const targetMorph = connected ? 1 : 0
   const targetSpeed = busy ? 45 : 0
   const speedDamping = 8
   const speedDecay = Math.exp(-speedDamping * dt)
+  // Analytic underdamped spring: a small overshoot, independent of frame rate.
   const frequency = 20
   const damping = 0.6 * frequency
   const dampedFrequency = Math.sqrt(frequency * frequency - damping * damping)

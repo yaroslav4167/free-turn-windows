@@ -14,18 +14,11 @@ func TestShowCaptchaNotificationThrottling(t *testing.T) {
 	captchaMu.Unlock()
 
 	var called atomic.Int32
-	delivered := make(chan struct{}, 2)
 	onOpen := func() {
 		called.Add(1)
-		delivered <- struct{}{}
 	}
 
 	_ = ShowCaptchaNotification("https://example.com/captcha", onOpen)
-	select {
-	case <-delivered:
-	case <-time.After(2 * time.Second):
-		t.Fatal("notification callback did not run")
-	}
 
 	// Immediate next call should be throttled
 	err := ShowCaptchaNotification("https://example.com/captcha", onOpen)
@@ -34,8 +27,8 @@ func TestShowCaptchaNotificationThrottling(t *testing.T) {
 	}
 
 	time.Sleep(50 * time.Millisecond)
-	if got := called.Load(); got != 1 {
-		t.Fatalf("expected one callback due to throttling, called %d times", got)
+	if got := called.Load(); got != 0 {
+		t.Fatalf("showing notifications must not open the browser, called %d times", got)
 	}
 }
 

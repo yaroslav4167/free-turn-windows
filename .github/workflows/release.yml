@@ -1,88 +1,83 @@
-name: Release
+name: Release Linux client
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v1.0.2)'
-        required: false
-        default: 'v1.0.2'
+        description: Existing release tag
+        required: true
 
 permissions:
   contents: write
 
-env:
-  GO_VERSION: "1.26.7"
-
 jobs:
-  build-windows:
-    name: Build Windows Desktop & CLI
-    runs-on: windows-latest
+  build-linux:
+    # Build against older glibc so the archive also runs on Debian 12 and Arch.
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
-      - name: Setup Go
-        uses: actions/setup-go@v6.4.0
+      - uses: actions/setup-go@v6.4.0
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
           cache: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22
+
+      - name: Install Wails build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
 
-      - name: Install Frontend Dependencies
-        working-directory: desktop/frontend
-        run: npm ci
+      - name: Install frontend dependencies
+        run: npm --prefix desktop/frontend ci
 
-      - name: Build Wails Desktop Application
+      - name: Build desktop client
         working-directory: desktop
-        run: wails build -ldflags "-checklinkname=0 -s -w" -trimpath
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          UPDATE_REPOSITORY: ${{ github.repository }}
+        run: $(go env GOPATH)/bin/wails build -tags webkit2_41 -ldflags "-checklinkname=0 -s -w -X main.desktopVersion=${RELEASE_TAG} -X main.updateRepository=${UPDATE_REPOSITORY}" -trimpath
 
-      - name: Build Windows CLI Binaries & Package Portable ZIP
-        shell: pwsh
+      - name: Package Linux release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          $ver = if ("${{ inputs.tag }}" -ne "") { "${{ inputs.tag }}" } else { "${{ github.ref_name }}" }
-          New-Item -ItemType Directory -Force -Path dist
-          
-          # 1. Build CLI client and server
-          go build -ldflags "-s -w -checklinkname=0 -X main.version=$ver" -trimpath -o dist/client-windows-amd64.exe ./cmd/client
-          go build -ldflags "-s -w -checklinkname=0 -X main.version=$ver" -trimpath -o dist/server-windows-amd64.exe ./cmd/server
-          
-          # 2. Package Portable ZIP
-          $stage = "portable-stage"
-          New-Item -ItemType Directory -Force -Path $stage
-          Copy-Item "desktop/build/bin/freeturn-desktop.exe" -Destination "$stage/FreeTurn.exe"
-          Copy-Item "desktop/backend/wintunnel/assets/wintun.dll" -Destination "$stage/wintun.dll"
-          Copy-Item "scripts/windows/Run_Admin.bat" -Destination "$stage/Run_Admin.bat"
-          Copy-Item "scripts/windows/README.txt" -Destination "$stage/README.txt"
-          
-          $zipName = "FreeTurn-Windows-Portable-$ver.zip"
-          Compress-Archive -Path "$stage/*" -DestinationPath "dist/$zipName" -Force
-          
-          # 3. Generate SHA-256 Checksums
-          Set-Location dist
-          Get-FileHash -Algorithm SHA256 * | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)" } | Set-Content checksums.txt
-          Get-Content checksums.txt
+          mkdir -p dist/package
+          cp desktop/build/bin/freeturn-desktop dist/package/
+          cp desktop/build/bin/freeturn-vpn-helper dist/package/
+          cp README.md LICENSE dist/package/
+          cp packaging/linux/freeturn.desktop dist/package/
+          cp desktop/assets/icon.svg dist/package/freeturn.svg
+          mkdir -p dist/package/desktop/assets dist/package/docs
+          cp desktop/assets/icon.svg dist/package/desktop/assets/
+          cp -R docs/screenshots dist/package/docs/
+          cp docs/localization.md dist/package/docs/
+          cp packaging/linux/install-desktop.sh dist/package/
+          cp packaging/linux/uninstall-desktop.sh dist/package/
+          chmod +x dist/package/install-desktop.sh dist/package/uninstall-desktop.sh
+          go build -ldflags "-checklinkname=0 -s -w -X main.version=${RELEASE_TAG}" -trimpath -o dist/package/client ./cmd/client
+          go build -ldflags "-checklinkname=0 -s -w -X main.version=${RELEASE_TAG}" -trimpath -o dist/package/server ./cmd/server
+          tar -C dist/package -czf "dist/FreeTurn-Linux-amd64-${RELEASE_TAG}.tar.gz" .
+          cd dist
+          sha256sum "FreeTurn-Linux-amd64-${RELEASE_TAG}.tar.gz" > checksums.txt
 
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3.0.3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
-          name: FreeTurn Windows Client ${{ inputs.tag || github.ref_name }}
-          files: dist/*
-          draft: false
-          prerelease: false
+          name: FreeTurn Linux ${{ inputs.tag || github.ref_name }}
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

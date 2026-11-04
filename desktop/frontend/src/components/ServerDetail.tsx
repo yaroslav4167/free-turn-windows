@@ -4,23 +4,15 @@ import ServerForm from './ServerForm'
 import ServerManagement from './ServerManagement'
 import PeersPanel from './PeersPanel'
 import LogConsole, {LogEntry} from './LogConsole'
-import {formatBytes} from '../format'
-import ConnectionControl from './ConnectionControl'
+import VPNRoutingLists from './VPNRoutingLists'
+import {tr} from '../language'
 
-const STATE_LABEL: Record<string, string> = {
-  idle: 'Отключено',
-  connecting: 'Подключение…',
-  connected: 'Подключено',
-  captcha: 'Требуется captcha',
-  error: 'Ошибка',
-}
 
 interface Props {
   server: backend.Server
   dirty: boolean
   status: backend.Status
   isActive: boolean
-  pending: boolean
   logs: LogEntry[]
   onChange: (s: backend.Server) => void
   onSave: () => void
@@ -35,7 +27,6 @@ export default function ServerDetail({
   dirty,
   status,
   isActive,
-  pending,
   logs,
   onChange,
   onSave,
@@ -44,9 +35,14 @@ export default function ServerDetail({
   onDisconnect,
   onClearLogs,
 }: Props) {
+  const STATE_LABEL: Record<string, string> = {
+    idle: tr('Отключено', 'Disconnected'), connecting: tr('Подключение…', 'Connecting…'),
+    connected: tr('Подключено', 'Connected'), captcha: tr('Требуется captcha', 'Captcha required'), error: tr('Ошибка', 'Error'),
+  }
   const [command, setCommand] = useState('')
 
   const state = isActive ? status.state : 'idle'
+  const busy = state === 'connecting'
   const otherActive = !isActive && status.state !== 'idle' && status.state !== 'error'
 
   const toggleCommand = () => {
@@ -54,7 +50,7 @@ export default function ServerDetail({
       setCommand('')
       return
     }
-    ConfigCommand(server.id).then(setCommand).catch((e) => setCommand('Ошибка: ' + e))
+    ConfigCommand(server.id).then(setCommand).catch((e) => setCommand(tr('Ошибка: ', 'Error: ') + e))
   }
 
   const isVPN = server.connMode === 'vpn'
@@ -62,26 +58,29 @@ export default function ServerDetail({
   return (
     <div className="detail">
       <div className="detail-header">
-        <h2>{server.name || server.peer || 'Новый сервер'}</h2>
-        <span className={'status-pill ' + state + (isActive && status.captchaUrl ? ' verification-required' : '')}>{STATE_LABEL[state] ?? state}</span>
+        <h2>{server.name || server.peer || tr('Новый сервер', 'New server')}</h2>
+        <span className={'status-pill ' + state}>{STATE_LABEL[state] ?? state}</span>
+        {isActive && state !== 'idle' && (
+          <button className="btn danger" onClick={onDisconnect}>
+            {tr('Отключить', 'Disconnect')}
+          </button>
+        )}
+        {!(isActive && (state === 'connecting' || state === 'connected' || state === 'captcha')) && (
+          <button className="btn primary" disabled={busy || !server.peer} onClick={onConnect}>
+            {otherActive ? tr('Переключиться', 'Switch') : isVPN ? tr('Включить VPN', 'Enable VPN') : tr('Подключиться', 'Connect')}
+          </button>
+        )}
         <button className="btn" disabled={!dirty} onClick={onSave}>
-          Сохранить
+          {tr('Сохранить', 'Save')}
         </button>
         <button className="btn danger" onClick={onDelete}>
-          Удалить
+          {tr('Удалить', 'Delete')}
         </button>
       </div>
 
       <div className="detail-body">
-        <ConnectionControl state={state} pending={pending} vpn={isVPN} canConnect={!!server.peer}
-          captcha={isActive && !!status.captchaUrl} onConnect={onConnect} onDisconnect={onDisconnect} />
-        {isActive && state === 'connected' && <div className="traffic-grid" aria-label="Трафик соединения">
-          <div><span>Получено</span><strong>{formatBytes(status.rxRate)}/с</strong><small>Всего: {formatBytes(status.rxTotal)}</small></div>
-          <div><span>Отправлено</span><strong>{formatBytes(status.txRate)}/с</strong><small>Всего: {formatBytes(status.txTotal)}</small></div>
-          <div><span>Потоки</span><strong>{status.streams} / {status.total}</strong></div>
-        </div>}
         <div className="field-group">
-          <h3>Тип подключения</h3>
+          <h3>{tr('Тип подключения', 'Connection type')}</h3>
           {server.wgClientConf ? (
             <div className="inline-actions">
               <button
@@ -89,37 +88,35 @@ export default function ServerDetail({
                 disabled={isActive && (state === 'connected' || state === 'connecting')}
                 onClick={() => onChange({...server, connMode: 'vpn'} as backend.Server)}
               >
-                VPN (одна кнопка)
+                {tr('VPN (одна кнопка)', 'VPN (one click)')}
               </button>
               <button
                 className={'btn small' + (!isVPN ? ' primary' : '')}
                 disabled={isActive && (state === 'connected' || state === 'connecting')}
                 onClick={() => onChange({...server, connMode: 'relay'} as backend.Server)}
               >
-                Реле (свой WireGuard-клиент)
+                {tr('Реле (свой WireGuard-клиент)', 'Relay (external WireGuard client)')}
               </button>
             </div>
           ) : (
             <div className="notice info">
-              VPN-режим в одну кнопку доступен только для серверов, развёрнутых через «Новый VPS» — там генерируется
-              конфиг WireGuard. Для этого сервера доступен только режим реле ниже.
+              {tr('VPN-режим в одну кнопку доступен только для серверов, развёрнутых через «Новый VPS» — там генерируется конфиг WireGuard. Для этого сервера доступен только режим реле ниже.', 'One-click VPN is available for servers deployed with “New VPS”, which generates a WireGuard configuration. Only relay mode is available for this server.')}
             </div>
           )}
         </div>
 
         {otherActive && (
           <div className="notice info">
-            Сейчас подключён другой сервер — переключение сначала отключит его.
+            {tr('Сейчас подключён другой сервер — переключение сначала отключит его.', 'Another server is connected — switching will disconnect it first.')}
           </div>
         )}
         {isActive && state === 'error' && status.errMsg && <div className="notice error">{status.errMsg}</div>}
         {isActive && state === 'connected' && isVPN && (
-          <div className="notice info">VPN включён — весь трафик идёт через {server.peer}.</div>
+          <div className="notice info">{tr('VPN включён через', 'VPN enabled via')} {server.peer}{server.routingLists?.some((list) => list.enabled) ? tr(' · применены списки маршрутизации', ' · routing lists applied') : ''}.</div>
         )}
         {isActive && state === 'connected' && !isVPN && (
           <div className="notice info">
-            Реле поднято на <span className="mono">{server.listen}</span>. Направьте на этот адрес Endpoint в
-            вашем WireGuard/AmneziaWG-клиенте (релейный конфиг, MTU 1280) и включайте VPN.
+            {tr('Реле поднято на', 'Relay listening on')} <span className="mono">{server.listen}</span>. {tr('Направьте на этот адрес Endpoint в вашем WireGuard/AmneziaWG-клиенте (релейный конфиг, MTU 1280) и включайте VPN.', 'Set this as the Endpoint in your WireGuard/AmneziaWG client (relay configuration, MTU 1280), then enable VPN.')}
           </div>
         )}
 
@@ -127,11 +124,12 @@ export default function ServerDetail({
         {server.ssh && <PeersPanel server={server} />}
 
         <ServerForm value={server} onChange={onChange} />
+        {isVPN && <VPNRoutingLists server={server} onChange={onChange} disabled={isActive && state !== 'idle' && state !== 'error'} />}
 
         <div className="field-group">
           <div className="inline-actions">
             <button className="btn small" onClick={toggleCommand}>
-              {command ? 'Скрыть команду' : 'Показать эквивалент CLI'}
+              {command ? tr('Скрыть команду', 'Hide command') : tr('Показать эквивалент CLI', 'Show equivalent CLI command')}
             </button>
           </div>
           {command && <div className="mono" style={{marginTop: 8, whiteSpace: 'pre-wrap', color: 'var(--text-dim)'}}>{command}</div>}

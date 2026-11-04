@@ -22,7 +22,7 @@ const maxPeerNameRunes = 40
 // Peer is one WireGuard user as `share-list` reports it.
 type Peer struct {
 	PublicKey string `json:"pub"`
-	// Name is empty for the owner and for peers this app did not create.
+	// Name is empty if no supported name marker was saved in the peer config.
 	Name string `json:"name"`
 	IP   string `json:"ip"`
 	// LastHandshake is when the user's client last completed a WireGuard

@@ -1,4 +1,5 @@
 import {useEffect, useRef} from 'react'
+import {currentLanguage, tr} from '../language'
 
 export interface LogEntry {
   level: string
@@ -22,15 +23,15 @@ export default function LogConsole({lines, onClear}: Props) {
   return (
     <div className="log-console">
       <div className="log-console-header">
-        <span>Логи</span>
+        <span>{tr('Логи', 'Logs')}</span>
         <button className="btn small ghost" onClick={onClear}>
-          Очистить
+          {tr('Очистить', 'Clear')}
         </button>
       </div>
       <div className="log-lines" ref={bodyRef}>
         {lines.map((l, i) => (
           <div key={i} className={'log-line' + (l.level === 'error' ? ' error' : l.level === 'warn' ? ' warn' : '')}>
-            <span className="ts">{new Date(l.atMs).toLocaleTimeString()}</span>
+            <span className="ts">{new Date(l.atMs).toLocaleTimeString(currentLanguage())}</span>
             {l.msg}
           </div>
         ))}

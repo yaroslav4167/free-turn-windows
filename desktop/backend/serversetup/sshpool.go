@@ -56,6 +56,10 @@ var pool = struct {
 	m map[string]*pooledConn
 }{m: map[string]*pooledConn{}}
 
+// Tests adjust package timeouts between cases. Wait for keepalive readers to
+// exit before restoring those timeouts; shutdown also benefits from this.
+var keepaliveWorkers sync.WaitGroup
+
 // poolKey identifies "the same login": host, port, user and credentials.
 func poolKey(cfg SSHConfig) string {
 	h := sha256.New()
@@ -114,7 +118,11 @@ func dialConn(cfg SSHConfig) (*pooledConn, error) {
 		_ = pc.client.Wait()
 		pc.kill()
 	}()
-	go pc.keepalive()
+	keepaliveWorkers.Add(1)
+	go func() {
+		defer keepaliveWorkers.Done()
+		pc.keepalive()
+	}()
 	return pc, nil
 }
 
@@ -266,4 +274,5 @@ func CloseConnections() {
 	for _, pc := range conns {
 		pc.kill()
 	}
+	keepaliveWorkers.Wait()
 }

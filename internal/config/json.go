@@ -125,8 +125,8 @@ func defaultClientJSON() ClientJSON {
 		ClientID:        r.ClientID,
 		DTLSFingerprint: r.DTLSFingerprint,
 		SubURL:          r.SubURL,
-		Provider: r.Provider,
-		Routes:   r.Routes,
+		Provider:        r.Provider,
+		Routes:          r.Routes,
 		TURN: turnJSON{
 			N:         r.N,
 			Transport: r.Transport,

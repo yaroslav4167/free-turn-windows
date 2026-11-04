@@ -11,6 +11,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/samosvalishe/free-turn-proxy/desktop/locale"
 	"golang.org/x/sys/windows"
 )
 
@@ -190,8 +191,8 @@ func (t *Tray) showMenu() {
 	}
 	defer pDestroyMenu.Call(hMenu)
 
-	openTitlePtr, _ := windows.UTF16PtrFromString("Открыть FreeTurn")
-	quitTitlePtr, _ := windows.UTF16PtrFromString("Выход")
+	openTitlePtr, _ := windows.UTF16PtrFromString(locale.Text("Открыть FreeTurn", "Open FreeTurn"))
+	quitTitlePtr, _ := windows.UTF16PtrFromString(locale.Text("Выход", "Quit"))
 
 	pAppendMenuW.Call(hMenu, uintptr(mfString), uintptr(cmdOpen), uintptr(unsafe.Pointer(openTitlePtr)))
 	pAppendMenuW.Call(hMenu, uintptr(mfSeparator), 0, 0)
@@ -365,6 +366,8 @@ func Start(title string, onShow func(), onQuit func()) (*Tray, error) {
 
 	return tray, nil
 }
+
+func (t *Tray) Available() bool { return t != nil && t.hwnd != 0 }
 
 // Close removes the tray icon and terminates the tray window and message loop.
 func (t *Tray) Close() {

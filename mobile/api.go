@@ -33,8 +33,11 @@ const (
 	StateCaptcha = "captcha"
 )
 
+// DefaultConnectTimeout allows credential retrieval, TURN allocation and a
+// DTLS handshake (20–30 seconds by itself), including an initial retry.
+const DefaultConnectTimeout = 60 * time.Second
+
 const (
-	connectTimeout     = 15 * time.Second
 	stopTimeout        = 5 * time.Second
 	tunnelCloseTimeout = 3 * time.Second
 )
@@ -334,7 +337,7 @@ func finishStart(cfg *config.Client, logger *sinkLogger, parts *tunnelParts, rou
 		CaptchaActive: captchaActive.Load,
 		RouteCallback: routeCallback,
 		Options: session.Options{
-			ConnectTimeout: connectTimeout,
+			ConnectTimeout: DefaultConnectTimeout,
 			Traffic:        true,
 		},
 	}

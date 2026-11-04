@@ -1,4 +1,5 @@
 import {Component, ErrorInfo, ReactNode} from 'react'
+import {tr} from './language'
 
 interface Props {
   children: ReactNode
@@ -23,7 +24,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div style={{padding: 24, color: '#e6e9ef', fontFamily: 'Segoe UI, sans-serif'}}>
-          <h2 style={{color: '#f0554f'}}>Интерфейс упал с ошибкой</h2>
+          <h2 style={{color: '#f0554f'}}>{tr('Интерфейс упал с ошибкой', 'The interface encountered an error')}</h2>
           <p style={{color: '#8b93a1'}}>{this.state.error.message}</p>
           <pre style={{whiteSpace: 'pre-wrap', fontSize: 11, color: '#8b93a1', maxHeight: 300, overflow: 'auto'}}>
             {this.state.error.stack}
@@ -32,7 +33,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             style={{marginTop: 12, padding: '7px 14px', borderRadius: 7, border: '1px solid #2a2f38', background: '#1b1f26', color: '#e6e9ef', cursor: 'pointer'}}
             onClick={() => this.setState({error: null})}
           >
-            Попробовать снова
+            {tr('Попробовать снова', 'Try again')}
           </button>
         </div>
       )

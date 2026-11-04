@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {backend, CopyText, serversetup, ServerPeerAdd, ServerPeerRemove, ServerPeers, ServerPeerShare} from '../api'
 import {exactTime, formatBytes, formatLastSeen, presence, Presence} from '../format'
+import {tr} from '../language'
 
 const REFRESH_MS = 15000
 const PRESENCE_ORDER: Record<Presence, number> = {online: 0, recent: 1, idle: 2, never: 3}
@@ -21,19 +22,24 @@ export default function PeersPanel({server}: Props) {
   const [busy, setBusy] = useState(false)
   const [newName, setNewName] = useState('')
   const [shareState, setShareState] = useState<ShareState | null>(null)
-  const inflight = useRef(false)
+  const generation = useRef(0)
+  const inflight = useRef<{generation: number} | null>(null)
 
   const refresh = useCallback(async () => {
-    if (inflight.current) return
-    inflight.current = true
+    if (inflight.current?.generation === generation.current) return
+    const request = {generation: generation.current}
+    inflight.current = request
     try {
-      setList(await ServerPeers(server.id))
+      const result = await ServerPeers(server.id)
+      if (request.generation !== generation.current) return
+      setList(result)
       setError('')
     } catch (e) {
+      if (request.generation !== generation.current) return
       // Keep showing the last good list: one failed poll shouldn't blank the panel.
       setError(String(e))
     } finally {
-      inflight.current = false
+      if (inflight.current === request) inflight.current = null
     }
   }, [server.id])
 
@@ -46,7 +52,11 @@ export default function PeersPanel({server}: Props) {
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') refresh()
     }, REFRESH_MS)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+      generation.current++
+      inflight.current = null
+    }
   }, [refresh])
 
   const rows = useMemo(() => {
@@ -97,7 +107,7 @@ export default function PeersPanel({server}: Props) {
 
   const removeUser = (p: serversetup.Peer) =>
     guarded(async () => {
-      if (!window.confirm(`Удалить пользователя «${p.name || p.ip}»? Его подключение перестанет работать сразу.`)) return
+      if (!window.confirm(tr('Удалить пользователя «{name}»? Его подключение перестанет работать сразу.', {name: p.name || p.ip}))) return
       await ServerPeerRemove(server.id, p.pub)
       await refresh()
     })
@@ -107,23 +117,23 @@ export default function PeersPanel({server}: Props) {
   return (
     <div className="field-group">
       <div className="panel-head">
-        <h3>Пользователи WireGuard</h3>
+        <h3>{tr('Пользователи WireGuard', 'WireGuard users')}</h3>
         <button className="btn small ghost" disabled={busy} onClick={() => refresh()}>
-          Обновить
+          {tr('Обновить', 'Refresh')}
         </button>
       </div>
       {error && <div className="notice error">{error}</div>}
 
       <div className="peer-list">
-        {list === null && !error && <div className="peer-empty">Загрузка…</div>}
-        {list !== null && rows.length === 0 && <div className="peer-empty">Пользователей пока нет.</div>}
+        {list === null && !error && <div className="peer-empty">{tr('Загрузка…', 'Loading…')}</div>}
+        {list !== null && rows.length === 0 && <div className="peer-empty">{tr('Пользователей пока нет.', 'No users yet.')}</div>}
         {rows.map((p) => {
           const pr = presence(p.lastHandshake, now)
           return (
             <div className="peer-row" key={p.pub}>
               <span className={'dot' + (pr === 'online' ? ' connected' : pr === 'recent' ? ' captcha' : '')} />
               <div className="peer-main">
-                <div className="peer-name">{p.isOwner ? 'Вы (владелец)' : p.name || 'Без имени'}</div>
+                <div className="peer-name">{p.isOwner ? tr('Вы (владелец)', 'You (owner)') : p.name || tr('Без имени', 'Unnamed')}</div>
                 <div className="peer-sub mono">{p.ip}</div>
               </div>
               <div className="peer-activity">
@@ -131,7 +141,7 @@ export default function PeersPanel({server}: Props) {
                   {formatLastSeen(p.lastHandshake, now)}
                 </div>
                 {(p.rx > 0 || p.tx > 0) && (
-                  <div className="peer-sub" title="Скачано / отдано пользователем с момента запуска WireGuard на сервере">
+                  <div className="peer-sub" title={tr('Скачано / отдано пользователем с момента запуска WireGuard на сервере', 'User download / upload since WireGuard started on the server')}>
                     ↓ {formatBytes(p.tx)} ↑ {formatBytes(p.rx)}
                   </div>
                 )}
@@ -139,12 +149,12 @@ export default function PeersPanel({server}: Props) {
               <div className="peer-actions">
                 {p.hasConf && (
                   <button className="btn small" disabled={busy} onClick={() => openShare(p)}>
-                    Поделиться
+                    {tr('Поделиться', 'Share')}
                   </button>
                 )}
                 {!p.isOwner && (
                   <button className="btn small danger" disabled={busy} onClick={() => removeUser(p)}>
-                    Удалить
+                    {tr('Удалить', 'Delete')}
                   </button>
                 )}
               </div>
@@ -158,13 +168,13 @@ export default function PeersPanel({server}: Props) {
           type="text"
           value={newName}
           maxLength={40}
-          placeholder="Имя нового пользователя"
+          placeholder={tr('Имя нового пользователя', 'New user name')}
           disabled={busy}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && newName.trim() && !busy && addUser()}
         />
         <button className="btn primary" disabled={busy || !newName.trim()} onClick={addUser}>
-          {busy ? 'Подождите…' : 'Создать пользователя'}
+          {busy ? tr('Подождите…', 'Please wait…') : tr('Создать пользователя', 'Create user')}
         </button>
       </div>
 
@@ -207,35 +217,34 @@ function ShareModal({share, peerName, canIncludeVK, busy, onIncludeVK, onClose}:
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Подключение для «{peerName || share.ip}»</h2>
+        <h2>{tr('Подключение для «{name}»', {name: peerName || share.ip})}</h2>
         {share.qr ? (
           <div className="qr-box">
-            <img src={share.qr} alt="QR-код подключения" />
+            <img src={share.qr} alt={tr('QR-код подключения', 'Connection QR code')} />
           </div>
         ) : (
-          <div className="notice info">Ссылка слишком длинная для QR-кода — отправьте её текстом.</div>
+          <div className="notice info">{tr('Ссылка слишком длинная для QR-кода — отправьте её текстом.', 'The link is too long for a QR code — send it as text.')}</div>
         )}
         <div className="field">
-          <label>Ссылка freeturn://</label>
+          <label>{tr('Ссылка freeturn://', 'freeturn:// link')}</label>
           <textarea readOnly value={share.link} onClick={(e) => (e.target as HTMLTextAreaElement).select()} />
         </div>
         {canIncludeVK && (
           <label className="checkbox-row">
             <input type="checkbox" checked={share.includesVk} disabled={busy} onChange={(e) => onIncludeVK(e.target.checked)} />
-            Добавить в ссылку мою ссылку на звонок VK
+            {tr('Добавить в ссылку мою ссылку на звонок VK', 'Include my VK call link')}
           </label>
         )}
         <div className="notice info">
-          Отправьте ссылку или покажите QR: пользователь импортирует её в приложении, и сервер добавится сразу с рабочим
-          WireGuard.
-          {!share.includesVk && ' Свою ссылку на звонок VK он вводит сам.'}
+          {tr('Отправьте ссылку или покажите QR: пользователь импортирует её в приложении, и сервер добавится сразу с рабочим WireGuard.', 'Send the link or show the QR code: importing it into the app adds the server with a working WireGuard configuration.')}
+          {!share.includesVk && tr(' Свою ссылку на звонок VK он вводит сам.', ' The user will enter their own VK call link.')}
         </div>
         <div className="modal-actions">
           <button className="btn" onClick={onClose}>
-            Закрыть
+            {tr('Закрыть', 'Close')}
           </button>
           <button className="btn primary" onClick={copy}>
-            {copied ? 'Скопировано ✓' : 'Скопировать ссылку'}
+            {copied ? tr('Скопировано ✓', 'Copied ✓') : tr('Скопировать ссылку', 'Copy link')}
           </button>
         </div>
       </div>

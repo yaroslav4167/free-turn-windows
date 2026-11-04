@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	amtun "github.com/amnezia-vpn/amneziawg-go/v3/tun"
 	"golang.org/x/sys/windows"
@@ -45,11 +44,6 @@ const adapterName = "FreeTurn"
 // DefaultMTU matches the server-control script's WG_MTU: the tunnel rides
 // over TURN + DTLS + obfuscation overhead, so the usual 1420 doesn't fit.
 const DefaultMTU = 1280
-
-// connectTimeout bounds how long Connect waits for the relay session to
-// actually establish (VK captcha solving + TURN allocation observed up to
-// ~15s in practice) before giving up and tearing the adapter back down.
-const connectTimeout = 45 * time.Second
 
 // connState is everything Disconnect needs to tear down cleanly.
 type connState struct {
@@ -155,6 +149,10 @@ func ensureWintunDLL() error {
 // host routes (/32) are installed via the physical default gateway so that server
 // control and SSH remain reachable while the VPN is active.
 func Connect(configJSON, wgConfigText string, mtu int, exclusionIPs ...string) error {
+	return ConnectWithRoutes(configJSON, wgConfigText, mtu, "", exclusionIPs...)
+}
+
+func ConnectWithRoutes(configJSON, wgConfigText string, mtu int, routeOverride string, exclusionIPs ...string) error {
 	mu.Lock()
 	alreadyActive := active != nil
 	mu.Unlock()
@@ -175,6 +173,9 @@ func Connect(configJSON, wgConfigText string, mtu int, exclusionIPs ...string) e
 	params, err := mobile.ParseTunnelConfig(wgConfigText, mtu)
 	if err != nil {
 		return fmt.Errorf("parse tunnel config: %w", err)
+	}
+	if routeOverride != "" {
+		params.AllowedIPs = routeOverride
 	}
 
 	// Capture the machine's current (pre-tunnel) default gateway before we
@@ -296,32 +297,6 @@ func flushInterface(luid winipcfg.LUID) {
 	luid.FlushIPAddresses(windows.AF_UNSPEC)
 	luid.FlushDNS(windows.AF_INET)
 	luid.FlushDNS(windows.AF_INET6)
-}
-
-// waitConnected polls the session's state until it reaches "connected" (the
-// relay is actually up and passing traffic), fails, or times out. Captcha
-// solving is a normal intermediate state, not a failure, so it just keeps
-// waiting through it.
-func waitConnected(timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for {
-		snap := mobile.GetState()
-		switch snap.State {
-		case mobile.StateConnected:
-			return nil
-		case mobile.StateError:
-			if snap.ErrMsg != "" {
-				return fmt.Errorf("сессия не подключилась: %s", snap.ErrMsg)
-			}
-			return fmt.Errorf("сессия завершилась с ошибкой")
-		case mobile.StateIdle:
-			return fmt.Errorf("сессия остановилась, не успев подключиться")
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("не удалось подключиться за %s", timeout)
-		}
-		time.Sleep(300 * time.Millisecond)
-	}
 }
 
 // configureAddress assigns the tunnel interface its own address only - safe

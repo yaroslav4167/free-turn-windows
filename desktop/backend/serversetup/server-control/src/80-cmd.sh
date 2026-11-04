@@ -138,8 +138,9 @@ cmd_probe() {
     if conflict_tailscale; then cts=true; fi
     ifaces=$(other_wg_ifaces_csv)
 
-    # Read-only detection of other layouts. Never execute unknown binaries or
-    # source their configuration to decide whether deployment is safe.
+    # Detect other layouts without executing their binaries or sourcing config.
+    # These are NOT managed by this control script and must never be restarted
+    # or reconfigured by the deployment wizard.
     local existing_service="" candidate load_state
     for candidate in freeturn-server.service free-turn-server.service "$UNIT_NAME" "$LEGACY_UNIT"; do
         if command -v systemctl >/dev/null 2>&1; then

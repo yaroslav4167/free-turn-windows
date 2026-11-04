@@ -291,7 +291,12 @@ func TestIntegrationInstallFallsBackToUpload(t *testing.T) {
 	var mu sync.Mutex
 	var lines []string
 	began := time.Now()
-	inst, err := Install(cfg, func(l string) { mu.Lock(); lines = append(lines, l); t.Logf("%6.1fs  %s", time.Since(began).Seconds(), l); mu.Unlock() })
+	inst, err := Install(cfg, func(l string) {
+		mu.Lock()
+		lines = append(lines, l)
+		t.Logf("%6.1fs  %s", time.Since(began).Seconds(), l)
+		mu.Unlock()
+	})
 	if err != nil {
 		t.Fatalf("Install with GitHub blocked on the server: %v", err)
 	}

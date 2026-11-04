@@ -24,7 +24,7 @@ var (
 
 // ShowCaptchaNotification sends a notification informing the user
 // that VK captcha verification is required. Repeated calls within 5 seconds are throttled.
-// If onOpen is provided, it is invoked when the notification is opened / triggered.
+// Native toast/popup activation opens the URL; showing it must not invoke onOpen.
 func ShowCaptchaNotification(captchaURL string, onOpen func()) error {
 	captchaMu.Lock()
 	now := time.Now()
@@ -34,10 +34,6 @@ func ShowCaptchaNotification(captchaURL string, onOpen func()) error {
 	}
 	lastCaptchaTime = now
 	captchaMu.Unlock()
-
-	if onOpen != nil {
-		go onOpen()
-	}
 
 	// Always trigger custom popup (guaranteed visibility even under Focus Assist / Do Not Disturb)
 	_ = showCustomCaptchaPopup(captchaURL)

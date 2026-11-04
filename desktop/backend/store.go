@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/samosvalishe/free-turn-proxy/desktop/backend/routing"
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/serversetup"
 )
 
@@ -63,7 +65,8 @@ type Server struct {
 	// ConnModeVPN (embedded tunnel - Connect creates the OS network adapter
 	// itself from WgClientConf, no separate client needed). VPN mode requires
 	// WgClientConf to be set.
-	ConnMode string `json:"connMode,omitempty"`
+	ConnMode     string         `json:"connMode,omitempty"`
+	RoutingLists []routing.List `json:"routingLists"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -89,6 +92,7 @@ func DefaultServer() Server {
 		ClientID:       generateHex(16),
 		KCP:            DefaultKCPProfile(),
 		ConnMode:       ConnModeRelay,
+		RoutingLists:   []routing.List{},
 	}
 }
 
@@ -146,9 +150,16 @@ func (s *Store) load() error {
 // generated WireGuard conf (the "deploy new VPS" wizard) defaults to the
 // one-click embedded VPN instead of the older relay-only mode.
 func normalizeServer(s *Server) {
-	if s.VKLinks == nil {
-		s.VKLinks = []string{}
+	if s.RoutingLists == nil {
+		s.RoutingLists = []routing.List{}
 	}
+	links := make([]string, 0, len(s.VKLinks))
+	for _, link := range s.VKLinks {
+		if link = strings.TrimSpace(link); link != "" {
+			links = append(links, link)
+		}
+	}
+	s.VKLinks = links
 	if s.DNSServers == nil {
 		s.DNSServers = []string{}
 	}
@@ -180,6 +191,9 @@ func (s *Store) List() []Server {
 	defer s.mu.Unlock()
 	out := make([]Server, len(s.servers))
 	copy(out, s.servers)
+	for i := range out {
+		out[i].RoutingLists = routing.Clone(out[i].RoutingLists)
+	}
 	return out
 }
 
@@ -188,6 +202,7 @@ func (s *Store) Get(id string) (Server, bool) {
 	defer s.mu.Unlock()
 	for _, srv := range s.servers {
 		if srv.ID == id {
+			srv.RoutingLists = routing.Clone(srv.RoutingLists)
 			return srv, true
 		}
 	}
@@ -196,6 +211,11 @@ func (s *Store) Get(id string) (Server, bool) {
 
 // Save inserts or updates a profile by ID; a blank ID is treated as a new profile.
 func (s *Store) Save(srv Server) (Server, error) {
+	lists, err := routing.Normalize(srv.RoutingLists)
+	if err != nil {
+		return Server{}, err
+	}
+	srv.RoutingLists = lists
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -222,6 +242,7 @@ func (s *Store) Save(srv Server) (Server, error) {
 	if err := s.persist(); err != nil {
 		return Server{}, err
 	}
+	srv.RoutingLists = routing.Clone(srv.RoutingLists)
 	return srv, nil
 }
 

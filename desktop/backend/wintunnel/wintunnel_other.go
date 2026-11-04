@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !linux
 
 package wintunnel
 
@@ -8,6 +8,14 @@ var errUnsupported = errors.New("wintunnel: embedded VPN is only implemented on 
 
 func Available() bool { return false }
 
-func Connect(configJSON, wgConfigText string, mtu int, exclusionIPs ...string) error { return errUnsupported }
+func Connect(configJSON, wgConfigText string, mtu int, exclusionIPs ...string) error {
+	return errUnsupported
+}
+
+func ConnectWithRoutes(configJSON, wgConfigText string, mtu int, routes string, exclusionIPs ...string) error {
+	return errUnsupported
+}
 
 func Disconnect() {}
+
+func RunHelper(string) error { return errUnsupported }
