@@ -16,6 +16,21 @@ _self_pub() {
 
 _name_from_b64() { printf '%s' "$1" | base64 -d 2>/dev/null || true; }
 
+# Newer hackdiaz-dev servers store name|client_id|ip|pub|created in
+# clients.list. Read only the name matched by the exact WireGuard public key;
+# never source this file, expose client IDs, or guess associations by address.
+_peer_metadata_name() {
+    local metadata="${PREFIX:-/opt/free-turn-proxy}/clients.list"
+    [ -f "$metadata" ] || return 0
+    awk -F'|' -v key="$1" '
+        $4 == key && $1 != "" {
+            if (found && name != $1) ambiguous = 1
+            name = $1; found = 1
+        }
+        END { if (found && !ambiguous) printf "%s", name }
+    ' "$metadata" | base64 | tr -d '\r\n'
+}
+
 # 0, если блок [Peer] с этим PublicKey несёт маркер "# ft-user:" (выдан приложением).
 _peer_marked() {  # CONF PUBKEY
     awk -v key="$2" '
@@ -31,6 +46,7 @@ _peer_marked() {  # CONF PUBKEY
 _peers_flush() {
     if [ "$in_peer" = 1 ] && [ -n "$pub" ]; then
         local h t conf_yes el
+        if [ -z "$name" ]; then name=$(_peer_metadata_name "$pub"); fi
         h=$(printf '%s\n' "$hs" | awk -v p="$pub" '$1==p{print $2}')
         # rx/tx (байты) из `wg show transfer`: "<pub> <rx> <tx>". Только цифры - в JSON без кавычек.
         t=$(printf '%s\n' "$xfer" | awk -v p="$pub" '$1==p{print $2" "$3}')
@@ -68,11 +84,11 @@ peers_json() {
                 ;;
             "# ft-user: "*)
                 if [ "$in_peer" = 1 ]; then name="${line#\# ft-user: }"; fi ;;
-            "# client: "*)
+            "# client: "*|"# ft-client: "*)
                 # Older/manual installers store the readable name instead of
                 # the base64 marker. Prefer ft-user when both are present.
                 if [ "$in_peer" = 1 ] && [ -z "$name" ]; then
-                    client_name="${line#\# client: }"
+                    client_name="${line#*: }"
                     name=$(printf '%s' "$client_name" | base64 | tr -d '\r\n')
                 fi ;;
             PublicKey*=*)

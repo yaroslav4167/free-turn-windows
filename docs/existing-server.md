@@ -32,7 +32,10 @@ With split routing, the VPS address must be included in the VPN routes (and not
 excluded by a blacklist). VPN connectivity does not override a firewall that
 blocks SSH on the VPS, a wrong port, or a stopped SSH service.
 
-WireGuard names are read from `# ft-user: <base64>` and older `# client: <name>`
-comments in the managed server configuration. WireGuard itself stores public
+WireGuard names are read from `# ft-user: <base64>`, `# client: <name>` and
+`# ft-client: <name>` comments in the managed server configuration. Newer
+hackdiaz-dev installations also keep names in `/opt/free-turn-proxy/clients.list`;
+these are matched by the exact public key, without exposing client IDs or
+changing the metadata. Conflicting metadata is not guessed. WireGuard itself stores public
 keys and addresses, not names; if the comments were removed, there is no name
 to recover from its live peer list.
