@@ -2,21 +2,18 @@ import {useEffect, useState} from 'react'
 import {desktop, DesktopSettings} from '../desktop'
 import Icon from './Icon'
 import UpdatePreferences from './UpdatePreferences'
-import {ListServers} from '../../wailsjs/go/main/App'
 import {backend} from '../../wailsjs/go/models'
 import {availableLanguages, configureLanguage, tr} from '../language'
 
-export default function DesktopPreferences({version}: {version: string}) {
+export default function DesktopPreferences({version, active, servers}: {version: string, active: boolean, servers: backend.Server[]}) {
   const [settings, setSettings] = useState<DesktopSettings | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [servers, setServers] = useState<backend.Server[]>([])
 
   const refresh = () => desktop().DesktopSettings().then(setSettings)
   useEffect(() => {
     refresh().catch((e) => setError(String(e)))
-    ListServers().then(setServers).catch((e) => setError(String(e)))
   }, [])
 
   const run = async (action: () => Promise<unknown>, success = '') => {
@@ -35,7 +32,7 @@ export default function DesktopPreferences({version}: {version: string}) {
   }
 
   return (
-    <section className="settings-page">
+    <section className="settings-page" hidden={!active}>
       <header className="page-heading">
         <div>
           <span className="eyebrow">{tr('ПРИЛОЖЕНИЕ', 'APPLICATION')}</span>
@@ -153,7 +150,7 @@ export default function DesktopPreferences({version}: {version: string}) {
               <Icon name="tray" size={17} /> {tr('Свернуть в трей', 'Minimize to tray')}
             </button>
           </div>
-          <UpdatePreferences autoCheck={settings.autoCheckUpdates} disabled={busy} canInstall={settings.supported}
+          <UpdatePreferences active={active} autoCheck={settings.autoCheckUpdates} disabled={busy} canInstall={settings.supported}
             onAutoCheck={(enabled) => run(() => desktop().SetAutoCheckUpdates(enabled))} />
         </>
       )}

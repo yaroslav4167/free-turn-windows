@@ -6,9 +6,10 @@ import {currentLanguage, tr} from '../language'
 import {readDismissedUpdate, saveDismissedUpdate, updateNoticeId} from '../updateNotice'
 import {updateProgress, UpdateAction} from '../updateProgress'
 
-function useUpdateState(interval: number) {
+function useUpdateState(interval: number, enabled = true) {
   const [state, setState] = useState<UpdateState | null>(null)
   useEffect(() => {
+    if (!enabled) return
     let active = true
     let timer: number | undefined
     const refresh = async () => {
@@ -26,7 +27,7 @@ function useUpdateState(interval: number) {
       active = false
       window.clearTimeout(timer)
     }
-  }, [interval])
+  }, [interval, enabled])
   return state
 }
 
@@ -55,13 +56,14 @@ export function UpdateNotice({onOpen}: {onOpen: () => void}) {
   )
 }
 
-export default function UpdatePreferences({autoCheck, onAutoCheck, disabled, canInstall}: {
+export default function UpdatePreferences({active, autoCheck, onAutoCheck, disabled, canInstall}: {
+  active: boolean
   autoCheck: boolean
   onAutoCheck: (enabled: boolean) => void
   disabled: boolean
   canInstall: boolean
 }) {
-  const state = useUpdateState(500)
+  const state = useUpdateState(500, active)
   const [pending, setPending] = useState<UpdateAction | null>(null)
   const [error, setError] = useState('')
   const run = async (operation: UpdateAction, action: () => Promise<void>) => {

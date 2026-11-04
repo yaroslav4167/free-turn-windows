@@ -868,12 +868,13 @@ button:disabled {
   border-radius: 12px;
 }
 .notification-stack {
-  position: absolute;
+  position: fixed;
   top: 16px;
-  right: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 8;
-  width: min(460px, calc(100% - 32px));
-  max-height: calc(100% - 32px);
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -889,6 +890,9 @@ button:disabled {
 }
 .notification-stack > .notice.info:not(.captcha-notice) {
   background: #1b263c;
+}
+.settings-page[hidden] {
+  display: none;
 }
 .app-error {
   margin: 0;

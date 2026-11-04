@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from 'react'
+import {createPortal} from 'react-dom'
 import {
   backend,
   Connect,
@@ -57,6 +58,7 @@ export default function App() {
   const connectionRequest = useRef(0)
   const [showAdd, setShowAdd] = useState(false)
   const [view, setView] = useState<View>('connect')
+  const [settingsOpened, setSettingsOpened] = useState(false)
   const [pending, setPending] = useState(false)
   const [trafficHistory, setTrafficHistory] = useState(EMPTY_TRAFFIC_HISTORY)
 
@@ -154,13 +156,18 @@ export default function App() {
     void Disconnect().catch(e => setConnectError(String(e)))
   }
 
+  const changeView = (next: View) => {
+    if (next === 'settings') setSettingsOpened(true)
+    setView(next)
+  }
+
   return (
     <div className="app-shell">
-      <Navigation view={view} onChange={setView} version={version} />
+      <Navigation view={view} onChange={changeView} version={version} />
       <main className="workspace">
-        <div className="notification-stack">
+        {createPortal(<div className="notification-stack">
           <CaptchaNotice url={status.captchaUrl || ''} connected={status.state === 'connected' && !pending} />
-          {view !== 'settings' && <UpdateNotice onOpen={() => setView('settings')} />}
+          {view !== 'settings' && <UpdateNotice onOpen={() => changeView('settings')} />}
           {connectError && (
             <div className="app-error notice error" role="alert">
               <span>{connectError}</span>
@@ -169,7 +176,7 @@ export default function App() {
               </button>
             </div>
           )}
-        </div>
+        </div>, document.body)}
         {view === 'connect' && (
           <Connection
             servers={servers}
@@ -184,7 +191,7 @@ export default function App() {
             onEdit={() => setView('servers')}
           />
         )}
-        {view === 'settings' && <DesktopPreferences version={version} />}
+        {settingsOpened && <DesktopPreferences version={version} active={view === 'settings'} servers={servers} />}
         {view === 'logs' && (
           <section className="logs-page">
             <header className="page-heading">
