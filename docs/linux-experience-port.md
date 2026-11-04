@@ -19,6 +19,10 @@ Target: this fork's `feat/windows-desktop-experience` branch.
 - Captcha URL in status snapshots and a persistent browser-verification notice.
 - Traffic sampling/polling with stale-response protection and visible counters.
 - Multiline VK editing preserves blank lines and spaces while typing.
+- Read-only detection of common existing VPS installations; detected servers
+  bypass install/WireGuard/start and save only a local profile with manually
+  supplied existing credentials/configuration. Custom paths and containers may
+  not be detected. SSH management is not attached to unknown layouts.
 - SSH connection timers are captured per connection to avoid races during test
   cleanup; race detection remains enabled for the complete backend suite.
 
@@ -29,7 +33,6 @@ Target: this fork's `feat/windows-desktop-experience` branch.
 - English/Russian JSON localization and system language detection.
 - Routing lists and Windows route application.
 - ICMP server ping using Windows process invocation.
-- Safe detection/reuse of existing VPS installations.
 - Fork-specific update delivery, Windows installer/uninstaller, screenshots.
 - Native Windows build/tests and manual Wintun/connect/disconnect verification.
 

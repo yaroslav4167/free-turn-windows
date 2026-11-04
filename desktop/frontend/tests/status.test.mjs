@@ -66,3 +66,13 @@ test('VK editing preserves blank lines and captcha action is not tied to phase',
   assert.match(app, /status.captchaUrl &&/)
   assert.match(app, /BrowserOpenURL\(status.captchaUrl\)/)
 })
+
+test('existing server saves a local profile without running remote mutation commands', () => {
+  const wizard = readFileSync(new URL('../src/components/CreateServerWizard.tsx', import.meta.url), 'utf8')
+  assert.match(wizard, /if \(probe.installed \|\| probe.running\)/)
+  assert.match(wizard, /if \(fresh.installed \|\| fresh.running\)/)
+  const existing = wizard.slice(wizard.indexOf("if (step === 'existing')"), wizard.indexOf("if (step === 'config')"))
+  assert.match(existing, /SaveServer\(existingDraft\)/)
+  assert.doesNotMatch(existing, /SetupInstall|SetupStart|SetupWgSetup|SetupCreateServer/)
+  assert.ok(wizard.indexOf('const fresh = await SetupProbe(ssh)') < wizard.indexOf('await SetupInstall(ssh)'))
+})

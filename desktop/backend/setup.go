@@ -1,7 +1,8 @@
 package backend
 
 import (
-	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/serversetup"
@@ -25,7 +26,7 @@ type ServerSetupDraft struct {
 func BuildProvisionedServer(ssh serversetup.SSHConfig, draft ServerSetupDraft, wg *serversetup.WgSetupResult) Server {
 	srv := DefaultServer()
 	srv.Name = draft.Name
-	srv.Peer = fmt.Sprintf("%s:%d", ssh.IP, draft.ListenPort)
+	srv.Peer = net.JoinHostPort(ssh.IP, strconv.Itoa(draft.ListenPort))
 	if draft.VKLink != "" {
 		srv.VKLinks = []string{draft.VKLink}
 	}

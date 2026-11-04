@@ -138,6 +138,28 @@ cmd_probe() {
     if conflict_tailscale; then cts=true; fi
     ifaces=$(other_wg_ifaces_csv)
 
+    # Read-only detection of other layouts. Never execute unknown binaries or
+    # source their configuration to decide whether deployment is safe.
+    local existing_service="" candidate load_state
+    for candidate in freeturn-server.service free-turn-server.service "$UNIT_NAME" "$LEGACY_UNIT"; do
+        if command -v systemctl >/dev/null 2>&1; then
+            load_state=$(systemctl show "$candidate" -p LoadState --value 2>/dev/null || true)
+            if [ -n "$load_state" ] && [ "$load_state" != not-found ]; then
+                installed=true
+                existing_service="$candidate"
+                if systemctl is-active --quiet "$candidate" 2>/dev/null; then running=true; fi
+                break
+            fi
+        fi
+    done
+    for candidate in /usr/local/bin/freeturn-server /usr/bin/freeturn-server /opt/freeturn-server /opt/free-turn-server; do
+        if [ -e "$candidate" ]; then
+            installed=true
+            break
+        fi
+    done
+    if command -v freeturn-server >/dev/null 2>&1; then installed=true; fi
+    d_str existing_service "$existing_service"
     d_bool installed "$installed"
     [ -n "$version" ] && d_str version "$version"
     [ -n "$sha" ] && d_str bin_sha256 "$sha"

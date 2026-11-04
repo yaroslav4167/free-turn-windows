@@ -8,6 +8,8 @@ import (
 
 // ProbeResult is the UI-friendly subset of cmd_probe's output the wizard needs.
 type ProbeResult struct {
+	ExistingService string `json:"existingService"`
+	Version         string `json:"version"`
 	HostFingerprint string `json:"hostFingerprint"`
 	Installed       bool   `json:"installed"`
 	Running         bool   `json:"running"`
@@ -31,7 +33,7 @@ func Probe(cfg SSHConfig) (*ProbeResult, error) {
 	if data.Wg.Port != nil {
 		port = *data.Wg.Port
 	}
-	return &ProbeResult{HostFingerprint: fp, Installed: data.Installed, Running: data.Running, WgPort: port}, nil
+	return &ProbeResult{HostFingerprint: fp, Installed: data.Installed, Running: data.Running, WgPort: port, ExistingService: data.ExistingService, Version: data.Version}, nil
 }
 
 // InstallResult mirrors cmd_install's output.

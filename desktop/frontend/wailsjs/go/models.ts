@@ -331,6 +331,8 @@ export namespace serversetup {
 		}
 	}
 	export class ProbeResult {
+	    existingService: string;
+	    version: string;
 	    hostFingerprint: string;
 	    installed: boolean;
 	    running: boolean;
@@ -343,6 +345,8 @@ export namespace serversetup {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.hostFingerprint = source["hostFingerprint"];
+	        this.existingService = source["existingService"];
+	        this.version = source["version"];
 	        this.installed = source["installed"];
 	        this.running = source["running"];
 	        this.wgPort = source["wgPort"];

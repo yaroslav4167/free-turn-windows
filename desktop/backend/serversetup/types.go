@@ -55,17 +55,18 @@ type conflicts struct {
 
 // probeData mirrors 80-cmd.sh's cmd_probe output.
 type probeData struct {
-	Installed bool      `json:"installed"`
-	Version   string    `json:"version"`
-	Running   bool      `json:"running"`
-	Mode      string    `json:"mode"`
-	Obf       string    `json:"obf"`
-	Runtime   string    `json:"runtime"`
-	Euid      int       `json:"euid"`
-	Wg        wgInfo    `json:"wg"`
-	Virt      string    `json:"virt"`
-	WgKernel  bool      `json:"wg_kernel"`
-	Conflicts conflicts `json:"conflicts"`
+	ExistingService string    `json:"existing_service"`
+	Installed       bool      `json:"installed"`
+	Version         string    `json:"version"`
+	Running         bool      `json:"running"`
+	Mode            string    `json:"mode"`
+	Obf             string    `json:"obf"`
+	Runtime         string    `json:"runtime"`
+	Euid            int       `json:"euid"`
+	Wg              wgInfo    `json:"wg"`
+	Virt            string    `json:"virt"`
+	WgKernel        bool      `json:"wg_kernel"`
+	Conflicts       conflicts `json:"conflicts"`
 }
 
 // installData mirrors cmd_install's output.

@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'react'
+import ServerForm from './ServerForm'
 import {
   backend,
   EventsOn,
@@ -12,13 +13,15 @@ import {
   SetupProbe,
   SetupStart,
   SetupWgSetup,
+  NewServer,
+  SaveServer,
 } from '../api'
 
 interface Props {
   onCreated: (s: backend.Server) => void
 }
 
-type Step = 'ssh' | 'config' | 'progress' | 'done'
+type Step = 'ssh' | 'existing' | 'config' | 'progress' | 'done'
 type TaskState = 'pending' | 'running' | 'done' | 'error'
 
 const TASK_LABEL: Record<string, string> = {
@@ -47,6 +50,8 @@ export default function CreateServerWizard({onCreated}: Props) {
   const [ssh, setSsh] = useState<serversetup.SSHConfig>(newSshDraft())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [existing, setExisting] = useState<serversetup.ProbeResult | null>(null)
+  const [existingDraft, setExistingDraft] = useState<backend.Server | null>(null)
 
   const [name, setName] = useState('')
   const [vkLink, setVkLink] = useState('')
@@ -78,6 +83,16 @@ export default function CreateServerWizard({onCreated}: Props) {
       const probe = await SetupProbe(withRoot)
       const pinned: serversetup.SSHConfig = {...withRoot, hostFingerprint: probe.hostFingerprint || withRoot.hostFingerprint}
       setSsh(pinned)
+      setExisting(probe)
+      setWgPortExisting(probe.wgPort > 0)
+      if (probe.installed || probe.running) {
+        const draft = await NewServer()
+        draft.name = ssh.ip
+        // An unknown remote layout must not gain SSH management actions.
+        setExistingDraft(draft)
+        setStep('existing')
+        return
+      }
       if (probe.wgPort > 0) {
         setWgPort(probe.wgPort)
         setWgPortExisting(true)
@@ -94,6 +109,7 @@ export default function CreateServerWizard({onCreated}: Props) {
   }
 
   const runProvision = async () => {
+    if (existing?.installed || existing?.running) return
     setStep('progress')
     setError('')
     setProgressLines([])
@@ -108,6 +124,13 @@ export default function CreateServerWizard({onCreated}: Props) {
 
     try {
       mark('install', 'running')
+      const fresh = await SetupProbe(ssh)
+      if (fresh.installed || fresh.running) {
+        setExisting(fresh)
+        setExistingDraft(await NewServer())
+        setStep('existing')
+        return
+      }
       await SetupInstall(ssh)
       mark('install', 'done')
 
@@ -217,6 +240,38 @@ export default function CreateServerWizard({onCreated}: Props) {
         </div>
       </>
     )
+  }
+
+  if (step === 'existing') {
+    return <>
+      <div className="notice info">
+        Обнаружен установленный сервер. Повторная установка и перенастройка отключены.
+        {' '}{existing?.existingService} {existing?.version}
+        {' · '}{existing?.running ? 'Запущен' : 'Остановлен'}
+      </div>
+      <p>Укажите существующие параметры подключения и клиентский конфиг. Сохранение добавит только локальный профиль: настройки VPS и список разрешённых клиентов не изменятся.</p>
+      {error && <div className="notice error">{error}</div>}
+      {existingDraft && <>
+        <ServerForm value={existingDraft} onChange={setExistingDraft} />
+        <div className="field">
+          <label>Клиентский конфиг WireGuard/AmneziaWG (для режима VPN)</label>
+          <textarea value={existingDraft.wgClientConf || ''} onChange={e => setExistingDraft({
+            ...existingDraft, wgClientConf: e.target.value, connMode: e.target.value.trim() ? 'vpn' : 'relay',
+          } as backend.Server)} placeholder="[Interface]" />
+        </div>
+      </>}
+      <div className="modal-actions">
+        <button className="btn" disabled={busy} onClick={() => setStep('ssh')}>Назад</button>
+        <button className="btn primary" disabled={busy || !existingDraft?.peer} onClick={async () => {
+          if (!existingDraft) return
+          setBusy(true)
+          setError('')
+          try { onCreated(await SaveServer(existingDraft)) }
+          catch (e) { setError(String(e)) }
+          finally { setBusy(false) }
+        }}>Сохранить</button>
+      </div>
+    </>
   }
 
   if (step === 'config') {
