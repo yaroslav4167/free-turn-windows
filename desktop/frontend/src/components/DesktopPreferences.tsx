@@ -76,7 +76,7 @@ export default function DesktopPreferences({version}: {version: string}) {
             <label className="preference-row">
               <div>
                 <strong>{tr('Запускать вместе с системой', 'Start at login')}</strong>
-                <p>{tr('При входе в сеанс Linux. Автоподключение настраивается отдельно ниже.', 'When signing in to Linux. Automatic connection is configured separately below.')}</p>
+                <p>{tr('При входе в Windows. Автоподключение настраивается отдельно ниже.')}</p>
               </div>
               <input
                 type="checkbox"
@@ -136,7 +136,7 @@ export default function DesktopPreferences({version}: {version: string}) {
             </label>
             {!settings.trayAvailable && (
               <div className="notice info">
-                {tr('Системный трей недоступен. В GNOME нужно расширение AppIndicator / KStatusNotifierItem. Пока трей недоступен, закрытие окна завершает приложение и VPN.', 'System tray unavailable. GNOME requires an AppIndicator / KStatusNotifierItem extension. Without a tray, closing the window exits the app and disconnects the VPN.')}
+                {tr('Системный трей недоступен. Пока трей недоступен, закрытие окна завершает приложение и VPN.')}
                 {settings.trayError && (
                   <details>
                     <summary>{tr('Подробности', 'Details')}</summary>
@@ -160,7 +160,7 @@ export default function DesktopPreferences({version}: {version: string}) {
       <footer className="settings-about">
         <img className="app-icon" src="/freeturn.svg" alt="" width="44" height="44" />
         <div>
-          <strong>{tr('FreeTurn для Linux', 'FreeTurn for Linux')}</strong>
+          <strong>{tr('FreeTurn для Windows')}</strong>
           <p>Core {version || '…'} · Wails + React</p>
         </div>
         <button className="btn danger" onClick={() => run(() => desktop().Quit())}>

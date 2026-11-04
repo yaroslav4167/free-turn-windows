@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -70,9 +71,13 @@ func (a *App) DownloadUpdate() error {
 	if !state.Available || state.Busy != "" {
 		return errors.New("сначала проверьте доступное обновление")
 	}
+	filter := wailsruntime.FileFilter{DisplayName: locale.Text("Архив Linux (*.tar.gz)", "Linux archive (*.tar.gz)"), Pattern: "*.tar.gz"}
+	if runtime.GOOS == "windows" {
+		filter = wailsruntime.FileFilter{DisplayName: "Windows ZIP (*.zip)", Pattern: "*.zip"}
+	}
 	destination, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
 		Title: locale.Text("Сохранить обновление FreeTurn", "Save FreeTurn update"), DefaultFilename: state.AssetName,
-		Filters: []wailsruntime.FileFilter{{DisplayName: locale.Text("Архив Linux (*.tar.gz)", "Linux archive (*.tar.gz)"), Pattern: "*.tar.gz"}},
+		Filters: []wailsruntime.FileFilter{filter},
 	})
 	if err != nil || destination == "" {
 		return err
@@ -99,9 +104,13 @@ func (a *App) InstallUpdate() error {
 	if err != nil {
 		return err
 	}
+	message := locale.Text("Скачать и проверить "+state.LatestVersion+", отключить VPN и перезапустить клиент?\nБинарники будут установлены в "+filepath.Dir(target)+".\nПредыдущая пара сохранится для отката. Профили и настройки сохранятся. Системный VPN-helper автоматически не заменяется.", "Download and verify "+state.LatestVersion+", disconnect VPN and restart the client?\nBinaries will be installed in "+filepath.Dir(target)+".\nThe previous pair will be kept for rollback. Profiles and settings are preserved. The system VPN helper is not replaced automatically.")
+	if runtime.GOOS == "windows" {
+		message = locale.Text("Скачать и проверить "+state.LatestVersion+", отключить VPN и перезапустить клиент?\nПриложение будет установлено в "+filepath.Dir(target)+". Предыдущий EXE сохранится для отката. Профили и настройки сохранятся.", "Download and verify "+state.LatestVersion+", disconnect VPN and restart the client?\nThe application will be installed in "+filepath.Dir(target)+". The previous EXE is kept for rollback. Profiles and settings are preserved.")
+	}
 	answer, err := wailsruntime.MessageDialog(a.ctx, wailsruntime.MessageDialogOptions{
 		Type: wailsruntime.QuestionDialog, Title: locale.Text("Установить обновление FreeTurn?", "Install FreeTurn update?"),
-		Message: locale.Text("Скачать и проверить "+state.LatestVersion+", отключить VPN и перезапустить клиент?\nБинарники будут установлены в "+filepath.Dir(target)+".\nПредыдущая пара сохранится для отката. Профили и настройки сохранятся. Системный VPN-helper автоматически не заменяется.", "Download and verify "+state.LatestVersion+", disconnect VPN and restart the client?\nBinaries will be installed in "+filepath.Dir(target)+".\nThe previous pair will be kept for rollback. Profiles and settings are preserved. The system VPN helper is not replaced automatically."),
+		Message: message,
 		// Wails on Linux uses GTK's Yes/No buttons and returns "Yes"/"No"
 		// regardless of the displayed locale or custom button labels.
 		Buttons: []string{"Yes", "No"}, DefaultButton: "No", CancelButton: "No",

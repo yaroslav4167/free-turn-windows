@@ -52,7 +52,7 @@ func SystemLanguage() string {
 		}
 		return locale.MatchSystemLanguage(value)
 	}
-	return "en"
+	return nativeSystemLanguage()
 }
 
 func SavePreferences(prefs Preferences) error {

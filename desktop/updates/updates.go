@@ -66,6 +66,7 @@ type Manager struct {
 	archive         asset
 	checksum        asset
 	repository      string
+	platform        string
 	downloadStarted time.Time
 }
 
@@ -75,7 +76,7 @@ func New(version, arch, repository string) *Manager {
 		repository = ""
 	}
 	return &Manager{
-		state: State{CurrentVersion: version, CurrentKnown: known, Repository: repository}, arch: arch, repository: repository,
+		state: State{CurrentVersion: version, CurrentKnown: known, Repository: repository}, arch: arch, repository: repository, platform: "linux",
 		apiURL: "https://api.github.com/repos/" + repository + "/releases/latest",
 		client: &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
@@ -87,6 +88,12 @@ func New(version, arch, repository string) *Manager {
 			return nil
 		}},
 	}
+}
+
+func NewForPlatform(version, arch, repository, platform string) *Manager {
+	m := New(version, arch, repository)
+	m.platform = platform
+	return m
 }
 
 func (m *Manager) State() State {
@@ -174,6 +181,9 @@ func (m *Manager) Check(ctx context.Context) (err error) {
 	}
 	var archive, checksum asset
 	expected := "FreeTurn-Linux-" + m.arch + "-" + latest.Tag + ".tar.gz"
+	if m.platform == "windows" {
+		expected = "FreeTurn-Windows-" + m.arch + "-" + latest.Tag + ".zip"
+	}
 	for _, a := range latest.Assets {
 		if a.Name == expected {
 			archive = a
@@ -298,7 +308,7 @@ func (m *Manager) get(ctx context.Context, address string) (io.ReadCloser, error
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "FreeTurn-Linux-updater")
+	req.Header.Set("User-Agent", "FreeTurn-Desktop-updater")
 	req.Header.Set("Accept", "application/vnd.github+json")
 	response, err := m.client.Do(req)
 	if err != nil {

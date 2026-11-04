@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   desktop:
     runs-on: windows-latest
@@ -35,8 +39,15 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
       - name: Build desktop
         working-directory: desktop
-        run: wails build -ldflags "-checklinkname=0 -s -w" -trimpath
+        env:
+          UPDATE_REPOSITORY: ${{ github.repository }}
+        run: wails build -ldflags "-checklinkname=0 -s -w -X main.updateRepository=$env:UPDATE_REPOSITORY" -trimpath
       - name: Test core and backend
-        run: go test -race ./internal/session ./mobile ./desktop/backend/...
+        run: go test -race ./internal/session ./mobile ./desktop/...
       - name: Vet core and backend
-        run: go vet ./internal/session ./mobile ./desktop/backend/...
+        run: go vet ./internal/session ./mobile ./desktop/...
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: FreeTurn-Windows-test
+          path: desktop/build/bin/freeturn-desktop.exe
+          if-no-files-found: error

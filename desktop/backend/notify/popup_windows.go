@@ -154,11 +154,12 @@ type wndClassExW struct {
 }
 
 var (
-	popupMu          sync.Mutex
-	activePopupHwnd  windows.Handle
-	activeCaptchaURL string
-	classRegistered  bool
-	popupClassName   = syscall.StringToUTF16Ptr("FreeTurnCaptchaPopup")
+	popupMu           sync.Mutex
+	activePopupHwnd   windows.Handle
+	activeCaptchaURL  string
+	activeCaptchaOpen func()
+	classRegistered   bool
+	popupClassName    = syscall.StringToUTF16Ptr("FreeTurnCaptchaPopup")
 )
 
 // RGB helper: 0x00BBGGRR
@@ -166,7 +167,7 @@ func rgb(r, g, b byte) uint32 {
 	return uint32(r) | (uint32(g) << 8) | (uint32(b) << 16)
 }
 
-func showCustomCaptchaPopup(captchaURL string) error {
+func showCustomCaptchaPopup(captchaURL string, onOpen ...func()) error {
 	popupMu.Lock()
 	if activePopupHwnd != 0 {
 		// Close existing popup window
@@ -254,6 +255,10 @@ func showCustomCaptchaPopup(captchaURL string) error {
 		popupMu.Lock()
 		activePopupHwnd = hwnd
 		activeCaptchaURL = captchaURL
+		activeCaptchaOpen = nil
+		if len(onOpen) > 0 {
+			activeCaptchaOpen = onOpen[0]
+		}
 		popupMu.Unlock()
 
 		// Rounded corners
@@ -349,9 +354,13 @@ func popupWndProc(hwnd windows.Handle, msg uint32, wParam, lParam uintptr) uintp
 			y >= actionBtnRect.Top && y <= actionBtnRect.Bottom {
 			popupMu.Lock()
 			url := activeCaptchaURL
+			action := activeCaptchaOpen
+			current := activePopupHwnd == hwnd
 			popupMu.Unlock()
 
-			if url != "" {
+			if current && action != nil {
+				go action()
+			} else if current && url != "" && action == nil {
 				urlPtr := syscall.StringToUTF16Ptr(url)
 				openPtr := syscall.StringToUTF16Ptr("open")
 				pShellExecuteW.Call(0, uintptr(unsafe.Pointer(openPtr)), uintptr(unsafe.Pointer(urlPtr)), 0, 0, 1)
@@ -377,6 +386,7 @@ func popupWndProc(hwnd windows.Handle, msg uint32, wParam, lParam uintptr) uintp
 		popupMu.Lock()
 		if activePopupHwnd == hwnd {
 			activePopupHwnd = 0
+			activeCaptchaOpen = nil
 		}
 		popupMu.Unlock()
 		pPostQuitMessage.Call(0)

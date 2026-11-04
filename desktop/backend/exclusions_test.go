@@ -16,8 +16,8 @@ func TestLinuxManagementFollowsVPNRoutes(t *testing.T) {
 	if got := routeExclusions("linux", ips); len(got) != 0 {
 		t.Fatalf("Linux must not force SSH over a blocked physical route: %v", got)
 	}
-	if got := routeExclusions("windows", ips); !reflect.DeepEqual(got, ips) {
-		t.Fatalf("Windows route handling changed: %v", got)
+	if got := routeExclusions("windows", ips); len(got) != 0 {
+		t.Fatalf("Windows must let SSH follow profile routes while the core uses winProtector: %v", got)
 	}
 	plan, err := routing.Build(context.Background(), "0.0.0.0/0", "", []routing.List{{
 		Name: "VPS", Enabled: true, Mode: routing.Whitelist, Entries: ips,

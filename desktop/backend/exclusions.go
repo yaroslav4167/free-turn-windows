@@ -11,12 +11,12 @@ import (
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/routing"
 )
 
-// Linux already binds relay sockets to the physical interface. A global host
+// Linux and Windows bind relay sockets to the physical interface. A global host
 // route for the VPS would also force SSH outside the VPN, making management
 // impossible on networks where that direct path is blocked. Leave ordinary
 // sockets (including SSH) on the user's profile/split-tunnel routes instead.
 func routeExclusions(platform string, resolved []string) []string {
-	if platform == "linux" {
+	if platform == "linux" || platform == "windows" {
 		return nil
 	}
 	return resolved

@@ -1,4 +1,4 @@
-name: Release Linux client
+name: Release Windows client
 
 on:
   push:
@@ -13,71 +13,51 @@ permissions:
   contents: write
 
 jobs:
-  build-linux:
-    # Build against older glibc so the archive also runs on Debian 12 and Arch.
-    runs-on: ubuntu-22.04
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag || github.ref }}
-
       - uses: actions/setup-go@v6.4.0
         with:
           go-version-file: go.mod
           cache: true
-
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22
-
-      - name: Install Wails build libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
-
-      - name: Install frontend dependencies
-        run: npm --prefix desktop/frontend ci
-
-      - name: Build desktop client
+      - run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
+      - run: npm --prefix desktop/frontend ci
+      - name: Build and check Windows desktop
         working-directory: desktop
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
           UPDATE_REPOSITORY: ${{ github.repository }}
-        run: $(go env GOPATH)/bin/wails build -tags webkit2_41 -ldflags "-checklinkname=0 -s -w -X main.desktopVersion=${RELEASE_TAG} -X main.updateRepository=${UPDATE_REPOSITORY}" -trimpath
-
-      - name: Package Linux release
-        shell: bash
+        run: |
+          wails build -ldflags "-checklinkname=0 -s -w -X main.desktopVersion=$env:RELEASE_TAG -X main.updateRepository=$env:UPDATE_REPOSITORY" -trimpath
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package Windows release
+        shell: pwsh
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          mkdir -p dist/package
-          cp desktop/build/bin/freeturn-desktop dist/package/
-          cp desktop/build/bin/freeturn-vpn-helper dist/package/
-          cp README.md LICENSE dist/package/
-          cp packaging/linux/freeturn.desktop dist/package/
-          cp desktop/assets/icon.svg dist/package/freeturn.svg
-          mkdir -p dist/package/desktop/assets dist/package/docs
-          cp desktop/assets/icon.svg dist/package/desktop/assets/
-          cp -R docs/screenshots dist/package/docs/
-          cp docs/localization.md dist/package/docs/
-          cp packaging/linux/install-desktop.sh dist/package/
-          cp packaging/linux/uninstall-desktop.sh dist/package/
-          chmod +x dist/package/install-desktop.sh dist/package/uninstall-desktop.sh
-          go build -ldflags "-checklinkname=0 -s -w -X main.version=${RELEASE_TAG}" -trimpath -o dist/package/client ./cmd/client
-          go build -ldflags "-checklinkname=0 -s -w -X main.version=${RELEASE_TAG}" -trimpath -o dist/package/server ./cmd/server
-          tar -C dist/package -czf "dist/FreeTurn-Linux-amd64-${RELEASE_TAG}.tar.gz" .
-          cd dist
-          sha256sum "FreeTurn-Linux-amd64-${RELEASE_TAG}.tar.gz" > checksums.txt
-
+          New-Item -ItemType Directory -Force dist/package | Out-Null
+          Copy-Item desktop/build/bin/freeturn-desktop.exe dist/package/
+          Copy-Item scripts/windows/install.ps1,scripts/windows/uninstall.ps1 dist/package/
+          Copy-Item scripts/windows/Install.cmd,scripts/windows/Uninstall.cmd,scripts/windows/Run_Admin.bat dist/package/
+          Copy-Item README.md,LICENSE dist/package/
+          Copy-Item docs -Destination dist/package/docs -Recurse
+          Compress-Archive -Path dist/package/* -DestinationPath "dist/FreeTurn-Windows-amd64-$env:RELEASE_TAG.zip"
+          $archive = "FreeTurn-Windows-amd64-$env:RELEASE_TAG.zip"
+          $hash = (Get-FileHash "dist/$archive" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $archive" | Set-Content dist/checksums.txt -Encoding utf8NoBOM
       - uses: softprops/action-gh-release@v3.0.3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
-          name: FreeTurn Linux ${{ inputs.tag || github.ref_name }}
+          name: FreeTurn Windows ${{ inputs.tag || github.ref_name }}
           files: |
-            dist/*.tar.gz
+            dist/*.zip
             dist/checksums.txt
           generate_release_notes: true

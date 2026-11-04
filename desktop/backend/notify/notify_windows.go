@@ -36,9 +36,11 @@ func ShowCaptchaNotification(captchaURL string, onOpen func()) error {
 	captchaMu.Unlock()
 
 	// Always trigger custom popup (guaranteed visibility even under Focus Assist / Do Not Disturb)
-	_ = showCustomCaptchaPopup(captchaURL)
+	_ = showCustomCaptchaPopup(captchaURL, onOpen)
 
-	return ShowNotification(captchaTitle, captchaMessage, captchaURL)
+	// Protocol toasts cannot revalidate an old URL after disconnect. The in-app
+	// notice and custom popup use the engine's current-captcha callback instead.
+	return ShowNotification(captchaTitle, captchaMessage, "")
 }
 
 // ShowNotification sends a Windows toast notification with the given title, message and optional URL.

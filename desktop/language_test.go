@@ -9,6 +9,7 @@ import (
 
 func TestSetLanguagePersistsAndRejectsUnsupportedValues(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("APPDATA", t.TempDir())
 	t.Setenv("LC_ALL", "ru_RU.UTF-8")
 	t.Cleanup(func() { locale.Set("en") })
 	app := &App{preferences: integration.Preferences{Language: "system", AutoCheckUpdates: true}}

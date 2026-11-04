@@ -29,15 +29,23 @@ Target: this fork's `feat/windows-desktop-experience` branch.
 - SSH connection timers are captured per connection to avoid races during test
   cleanup; race detection remains enabled for the complete backend suite.
 
-## Pending
+## Full shared interface merged
 
-- Remaining shared UI: compact settings, hover information, traffic charts,
-  and the complete connection/settings page layout.
-- English/Russian JSON localization and system language detection.
-- Routing lists and Windows route application.
-- ICMP server ping using Windows process invocation.
-- Fork-specific update delivery, Windows installer/uninstaller, screenshots.
-- Native Windows build/tests and manual Wintun/connect/disconnect verification.
+The complete Linux branch was merged from the common Windows ancestor, including
+navigation, profile/settings/log pages, charts, hover tips, routing, JSON languages,
+updates and profile management. The earlier temporary Windows-only connection page
+was replaced by the same shared components rather than kept as a second UI.
+
+Windows adaptations now include native system locale detection, per-user installation,
+owned shortcuts, an interactive highest-privilege logon task, conservative removal,
+.NET ICMP probing, PE/ZIP update validation and a separate EXE update worker with
+startup confirmation/rollback. Windows release packaging remains ZIP, not Linux tar.
+
+## Validation pending
+
+- Native Windows build/race/vet for the complete merged port and adapters.
+- Real-machine Wintun/connect/disconnect, UAC, scheduled logon and GUI-update tests.
+- Native Windows screenshots (current README reference images are from Linux).
 
 Linux's privileged helper and shell installer must not replace Windows network
 or installation code. This branch is not a completed or released Windows port.

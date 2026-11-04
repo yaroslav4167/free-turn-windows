@@ -15,10 +15,18 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
-var binaryNames = []string{"freeturn-desktop", "freeturn-vpn-helper"}
+var binaryNames = platformBinaries(runtime.GOOS)
+
+func platformBinaries(platform string) []string {
+	if platform == "windows" {
+		return []string{"freeturn-desktop.exe"}
+	}
+	return []string{"freeturn-desktop", "freeturn-vpn-helper"}
+}
 
 const InstallProtocolMarker = "FREETURN_UPDATE_PROTOCOL_V1"
 
@@ -79,6 +87,9 @@ func (m *Manager) PrepareInstall(ctx context.Context, targetDir string) (stage s
 }
 
 func stageArchive(ctx context.Context, archive, stage, version, arch string) error {
+	if runtime.GOOS == "windows" {
+		return stageWindowsArchive(ctx, archive, stage, version, arch)
+	}
 	input, err := os.Open(archive)
 	if err != nil {
 		return err
@@ -167,6 +178,9 @@ func (r contextReader) Read(data []byte) (int, error) {
 }
 
 func validateBinary(filename, arch string) error {
+	if strings.HasSuffix(strings.ToLower(filename), ".exe") {
+		return validatePE(filename, arch)
+	}
 	machines := map[string]elf.Machine{"amd64": elf.EM_X86_64, "arm64": elf.EM_AARCH64, "386": elf.EM_386, "arm": elf.EM_ARM}
 	machine, ok := machines[arch]
 	if !ok {
@@ -236,7 +250,7 @@ func readPlan(stage, target string) (installPlan, error) {
 		return plan, errors.New("недопустимый каталог обновления")
 	}
 	info, err := os.Lstat(stage)
-	if err != nil || !info.IsDir() || info.Mode().Perm() != 0o700 {
+	if err != nil || !info.IsDir() || (runtime.GOOS != "windows" && info.Mode().Perm() != 0o700) {
 		return plan, errors.New("небезопасный каталог обновления")
 	}
 	file, err := os.Open(filepath.Join(stage, "plan.json"))

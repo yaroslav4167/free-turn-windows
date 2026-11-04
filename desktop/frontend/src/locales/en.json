@@ -2,6 +2,9 @@
   "code": "en",
   "name": "English",
   "messages": {
+    "При входе в Windows. Автоподключение настраивается отдельно ниже.": "When signing in to Windows. Automatic connection is configured separately below.",
+    "Системный трей недоступен. Пока трей недоступен, закрытие окна завершает приложение и VPN.": "System tray unavailable. Without a tray, closing the window exits the app and disconnects the VPN.",
+    "FreeTurn для Windows": "FreeTurn for Windows",
     "Клиентский конфиг WireGuard/AmneziaWG (для режима VPN)": "WireGuard/AmneziaWG client configuration (for VPN mode)",
     "Обнаружен установленный сервер. Повторная установка и перенастройка отключены.": "An existing server was detected. Reinstallation and reconfiguration are disabled.",
     "Укажите параметры существующего подключения и его клиентский конфиг. Сохранение добавит только локальный профиль: настройки сервера и список клиентов не изменятся.": "Enter the existing connection settings and its client configuration. Saving only adds a local profile: server settings and authorized clients will not change.",

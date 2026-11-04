@@ -27,8 +27,8 @@ test('GitHub workflows inject their own repository into update builds', () => {
     assert.match(workflow, /UPDATE_REPOSITORY: \$\{\{ github\.repository \}\}/)
   }
   const release = readFileSync(join(root, '.github/workflows/release.yml'), 'utf8')
-  assert.match(release, /-X main\.updateRepository=\$\{UPDATE_REPOSITORY\}/)
-  assert.match(release, /-X main\.desktopVersion=\$\{RELEASE_TAG\}/)
+  assert.match(release, /-X main\.updateRepository=(?:\$\{UPDATE_REPOSITORY\}|\$env:UPDATE_REPOSITORY)/)
+  assert.match(release, /-X main\.desktopVersion=(?:\$\{RELEASE_TAG\}|\$env:RELEASE_TAG)/)
 })
 
 test('desktop build script packages both binaries, documentation and checksums', {skip: process.platform !== 'linux'}, (t) => {

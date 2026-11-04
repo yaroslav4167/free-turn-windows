@@ -1,7 +1,3 @@
 @echo off
-cd /d "%~dp0"
-if exist FreeTurn_new.exe (
-    taskkill /F /IM FreeTurn.exe >nul 2>&1
-    move /Y FreeTurn_new.exe FreeTurn.exe >nul 2>&1
-)
-powershell -Command "Start-Process 'FreeTurn.exe' -Verb RunAs"
+set "FREETURN_EXE=%~dp0freeturn-desktop.exe"
+powershell.exe -NoLogo -NoProfile -Command "Start-Process -FilePath $env:FREETURN_EXE -Verb RunAs"
