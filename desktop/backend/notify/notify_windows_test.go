@@ -3,6 +3,7 @@
 package notify
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -12,12 +13,19 @@ func TestShowCaptchaNotificationThrottling(t *testing.T) {
 	lastCaptchaTime = time.Time{}
 	captchaMu.Unlock()
 
-	called := 0
+	var called atomic.Int32
+	delivered := make(chan struct{}, 2)
 	onOpen := func() {
-		called++
+		called.Add(1)
+		delivered <- struct{}{}
 	}
 
 	_ = ShowCaptchaNotification("https://example.com/captcha", onOpen)
+	select {
+	case <-delivered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("notification callback did not run")
+	}
 
 	// Immediate next call should be throttled
 	err := ShowCaptchaNotification("https://example.com/captcha", onOpen)
@@ -26,8 +34,8 @@ func TestShowCaptchaNotificationThrottling(t *testing.T) {
 	}
 
 	time.Sleep(50 * time.Millisecond)
-	if called > 1 {
-		t.Fatalf("expected onOpen to be called at most once due to throttling, called %d times", called)
+	if got := called.Load(); got != 1 {
+		t.Fatalf("expected one callback due to throttling, called %d times", got)
 	}
 }
 
