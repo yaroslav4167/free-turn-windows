@@ -158,16 +158,18 @@ export default function App() {
     <div className="app-shell">
       <Navigation view={view} onChange={setView} version={version} />
       <main className="workspace">
-        <CaptchaNotice url={status.captchaUrl || ''} connected={status.state === 'connected' && !pending} />
-        {view !== 'settings' && <UpdateNotice onOpen={() => setView('settings')} />}
-        {connectError && (
-          <div className="app-error notice error" role="alert">
-            <span>{connectError}</span>
-            <button className="btn small ghost" onClick={() => setConnectError('')} aria-label={tr('Закрыть сообщение', 'Dismiss message')}>
-              ×
-            </button>
-          </div>
-        )}
+        <div className="notification-stack">
+          <CaptchaNotice url={status.captchaUrl || ''} connected={status.state === 'connected' && !pending} />
+          {view !== 'settings' && <UpdateNotice onOpen={() => setView('settings')} />}
+          {connectError && (
+            <div className="app-error notice error" role="alert">
+              <span>{connectError}</span>
+              <button className="btn small ghost" onClick={() => setConnectError('')} aria-label={tr('Закрыть сообщение', 'Dismiss message')}>
+                ×
+              </button>
+            </div>
+          )}
+        </div>
         {view === 'connect' && (
           <Connection
             servers={servers}

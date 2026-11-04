@@ -867,8 +867,31 @@ button:disabled {
   padding: 0;
   border-radius: 12px;
 }
+.notification-stack {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 8;
+  width: min(460px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: none;
+}
+.notification-stack > .notice {
+  pointer-events: auto;
+}
+.notification-stack > .notice.error {
+  background: #2d1c22;
+}
+.notification-stack > .notice.info:not(.captcha-notice) {
+  background: #1b263c;
+}
 .app-error {
-  margin: 14px 20px 0;
+  margin: 0;
   display: flex;
   gap: 10px;
   align-items: center;

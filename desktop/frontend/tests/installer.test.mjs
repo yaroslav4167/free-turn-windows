@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {spawnSync} from 'node:child_process'
 
-test('installer configures helper and asks about shortcut; uninstaller requires consent', (t) => {
+test('installer configures helper and asks about shortcut; uninstaller requires consent', {skip: process.platform !== 'linux'}, (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'freeturn-install-'))
   t.after(() => rmSync(dir, {recursive: true, force: true}))
   const bin = join(dir, 'tools')

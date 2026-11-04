@@ -11,6 +11,7 @@ package wintunnel
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"net/netip"
 	"os"
@@ -359,7 +360,7 @@ func configureRoutesAndDNS(luid winipcfg.LUID, params *mobile.TunnelParams) erro
 		routes = append(routes, rd)
 	}
 	if len(routes) > 0 {
-		if err := luid.SetRoutes(routes); err != nil {
+		if err := addRoutesPreservingLocal(luid, routes); err != nil {
 			return fmt.Errorf("set routes: %w", err)
 		}
 	}
@@ -395,6 +396,26 @@ func configureRoutesAndDNS(luid winipcfg.LUID, params *mobile.TunnelParams) erro
 			if err := luid.SetDNS(windows.AF_INET6, v6, nil); err != nil {
 				return fmt.Errorf("set dns v6: %w", err)
 			}
+		}
+	}
+	return nil
+}
+
+type routeAdder interface {
+	AddRoute(destination netip.Prefix, nextHop netip.Addr, metric uint32) error
+}
+
+// The address configuration has already created Windows' local host and subnet
+// routes. SetRoutes flushes those as well: incoming decrypted packets then reach
+// TCPIP but are dropped as "Not locally destined". Add only the VPN routes; the
+// adapter is fresh and Disconnect flushes it, so no replacement is necessary.
+func addRoutesPreservingLocal(adapter routeAdder, routes []*winipcfg.RouteData) error {
+	for _, route := range routes {
+		err := adapter.AddRoute(route.Destination, route.NextHop, route.Metric)
+		// AllowedIPs may include an automatically created on-link route, or the
+		// same prefix more than once. Keep the existing route in that case.
+		if err != nil && !errors.Is(err, windows.ERROR_OBJECT_ALREADY_EXISTS) {
+			return err
 		}
 	}
 	return nil
