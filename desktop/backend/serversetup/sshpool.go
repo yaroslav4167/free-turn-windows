@@ -43,6 +43,12 @@ type pooledConn struct {
 	active  int
 	closing bool
 	idle    *time.Timer
+
+	// Snapshot tunables before launching background goroutines. Tests restore
+	// package defaults after closing connections, while those goroutines exit.
+	keepaliveInterval time.Duration
+	replyTimeout      time.Duration
+	idleTimeout       time.Duration
 }
 
 var pool = struct {
@@ -96,9 +102,13 @@ func dialConn(cfg SSHConfig) (*pooledConn, error) {
 	_ = conn.SetDeadline(time.Time{})
 
 	pc := &pooledConn{
-		client:      ssh.NewClient(sshConn, chans, reqs),
-		fingerprint: captured,
-		dead:        make(chan struct{}),
+		key:               poolKey(cfg),
+		client:            ssh.NewClient(sshConn, chans, reqs),
+		fingerprint:       captured,
+		dead:              make(chan struct{}),
+		keepaliveInterval: sshKeepAlive,
+		replyTimeout:      keepaliveReplyTimeout,
+		idleTimeout:       poolIdleTimeout,
 	}
 	go func() {
 		_ = pc.client.Wait()
@@ -130,7 +140,6 @@ func acquire(cfg SSHConfig) (pc *pooledConn, reused bool, err error) {
 	if err != nil {
 		return nil, false, err
 	}
-	fresh.key = key
 
 	pool.Lock()
 	if other := pool.m[key]; other != nil && !other.isDead() && other.checkout() {
@@ -176,7 +185,7 @@ func (pc *pooledConn) release() {
 	defer pc.mu.Unlock()
 	pc.active--
 	if pc.active == 0 && !pc.closing && !pc.isDead() {
-		pc.idle = time.AfterFunc(poolIdleTimeout, pc.expire)
+		pc.idle = time.AfterFunc(pc.idleTimeout, pc.expire)
 	}
 }
 
@@ -213,7 +222,7 @@ func (pc *pooledConn) kill() {
 // that matters more - notices a peer that silently stopped answering, which TCP
 // alone can take many minutes to report.
 func (pc *pooledConn) keepalive() {
-	t := time.NewTicker(sshKeepAlive)
+	t := time.NewTicker(pc.keepaliveInterval)
 	defer t.Stop()
 	for {
 		select {
@@ -239,7 +248,7 @@ func (pc *pooledConn) ping() bool {
 	select {
 	case err := <-res:
 		return err == nil
-	case <-time.After(keepaliveReplyTimeout):
+	case <-time.After(pc.replyTimeout):
 		return false
 	case <-pc.dead:
 		return true

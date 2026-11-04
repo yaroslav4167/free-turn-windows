@@ -1,9 +1,10 @@
 import {useState} from 'react'
-import {backend, BrowserOpenURL, ConfigCommand} from '../api'
+import {backend, ConfigCommand} from '../api'
 import ServerForm from './ServerForm'
 import ServerManagement from './ServerManagement'
 import PeersPanel from './PeersPanel'
 import LogConsole, {LogEntry} from './LogConsole'
+import {formatBytes} from '../format'
 
 const STATE_LABEL: Record<string, string> = {
   idle: 'Отключено',
@@ -18,7 +19,6 @@ interface Props {
   dirty: boolean
   status: backend.Status
   isActive: boolean
-  captchaUrl: string
   logs: LogEntry[]
   onChange: (s: backend.Server) => void
   onSave: () => void
@@ -33,7 +33,6 @@ export default function ServerDetail({
   dirty,
   status,
   isActive,
-  captchaUrl,
   logs,
   onChange,
   onSave,
@@ -62,7 +61,7 @@ export default function ServerDetail({
     <div className="detail">
       <div className="detail-header">
         <h2>{server.name || server.peer || 'Новый сервер'}</h2>
-        <span className={'status-pill ' + state}>{STATE_LABEL[state] ?? state}</span>
+        <span className={'status-pill ' + state + (isActive && status.captchaUrl ? ' verification-required' : '')}>{STATE_LABEL[state] ?? state}</span>
         {isActive && state !== 'idle' && (
           <button className="btn danger" onClick={onDisconnect}>
             Отключить
@@ -82,6 +81,11 @@ export default function ServerDetail({
       </div>
 
       <div className="detail-body">
+        {isActive && state === 'connected' && <div className="traffic-grid" aria-label="Трафик соединения">
+          <div><span>Получено</span><strong>{formatBytes(status.rxRate)}/с</strong><small>Всего: {formatBytes(status.rxTotal)}</small></div>
+          <div><span>Отправлено</span><strong>{formatBytes(status.txRate)}/с</strong><small>Всего: {formatBytes(status.txTotal)}</small></div>
+          <div><span>Потоки</span><strong>{status.streams} / {status.total}</strong></div>
+        </div>}
         <div className="field-group">
           <h3>Тип подключения</h3>
           {server.wgClientConf ? (
@@ -115,15 +119,6 @@ export default function ServerDetail({
           </div>
         )}
         {isActive && state === 'error' && status.errMsg && <div className="notice error">{status.errMsg}</div>}
-        {isActive && state === 'captcha' && (
-          <div className="notice info">
-            VK запросил проверку. {captchaUrl && (
-              <button className="btn small" onClick={() => BrowserOpenURL(captchaUrl)}>
-                Открыть captcha в браузере
-              </button>
-            )}
-          </div>
-        )}
         {isActive && state === 'connected' && isVPN && (
           <div className="notice info">VPN включён — весь трафик идёт через {server.peer}.</div>
         )}

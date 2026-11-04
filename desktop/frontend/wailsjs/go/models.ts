@@ -222,6 +222,7 @@ export namespace backend {
 		}
 	}
 	export class Status {
+	    captchaUrl: string;
 	    state: string;
 	    streams: number;
 	    total: number;
@@ -247,6 +248,7 @@ export namespace backend {
 	        this.txTotal = source["txTotal"];
 	        this.rxTotal = source["rxTotal"];
 	        this.serverId = source["serverId"];
+	        this.captchaUrl = source["captchaUrl"];
 	    }
 	}
 
@@ -474,4 +476,3 @@ export namespace serversetup {
 	}
 
 }
-

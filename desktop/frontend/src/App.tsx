@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState} from 'react'
-import {backend, Connect, CoreVersion, DeleteServer, Disconnect, EventsOff, EventsOn, ListServers, SaveServer, Status} from './api'
+import {backend, BrowserOpenURL, Connect, CoreVersion, DeleteServer, Disconnect, EventsOn, ListServers, SaveServer, Status} from './api'
+import {watchStatus} from './status'
 import Sidebar from './components/Sidebar'
 import ServerDetail from './components/ServerDetail'
 import AddServerModal from './components/AddServerModal'
@@ -8,7 +9,7 @@ import {LogEntry} from './components/LogConsole'
 const MAX_LOG_LINES = 500
 
 const IDLE_STATUS: backend.Status = {
-  state: 'idle', streams: 0, total: 0, errMsg: '', txRate: 0, rxRate: 0, txTotal: 0, rxTotal: 0, serverId: '',
+  state: 'idle', streams: 0, total: 0, errMsg: '', txRate: 0, rxRate: 0, txTotal: 0, rxTotal: 0, serverId: '', captchaUrl: '',
 }
 
 function sameServer(a: backend.Server | null, b: backend.Server | null): boolean {
@@ -23,7 +24,6 @@ export default function App() {
   const [draft, setDraft] = useState<backend.Server | null>(null)
   const [status, setStatus] = useState<backend.Status>(IDLE_STATUS)
   const [logs, setLogs] = useState<LogEntry[]>([])
-  const [captchaUrl, setCaptchaUrl] = useState('')
   const [version, setVersion] = useState('')
   const [connectError, setConnectError] = useState('')
   const [showAdd, setShowAdd] = useState(false)
@@ -34,21 +34,20 @@ export default function App() {
       if (list.length > 0) setSelectedId(list[0].id)
     })
     CoreVersion().then(setVersion)
-    Status().then(setStatus)
-
-    const offState = EventsOn('core:state', (s: backend.Status) => setStatus(s))
+    const stopStatus = watchStatus(Status, (listener) => {
+      const offState = EventsOn('core:state', (s: backend.Status) => listener(s))
+      const offStats = EventsOn('core:stats', (s: backend.Status) => listener(s, true))
+      return () => { offState(); offStats() }
+    }, setStatus)
     const offLog = EventsOn('core:log', (l: LogEntry) =>
       setLogs((prev) => {
         const next = [...prev, l]
         return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next
       })
     )
-    const offCaptcha = EventsOn('core:captcha', (url: string) => setCaptchaUrl(url))
     return () => {
-      offState()
+      stopStatus()
       offLog()
-      offCaptcha()
-      EventsOff('core:state', 'core:log', 'core:captcha')
     }
   }, [])
 
@@ -105,6 +104,12 @@ export default function App() {
         version={version}
       />
       <div className="main">
+        {status.captchaUrl && <div className="notice captcha-notice" role="status" id="captcha-notice">
+          <span>{status.state === 'connected'
+            ? 'Соединение работает. Для части потоков требуется проверка VK.'
+            : 'Для подключения требуется проверка VK в браузере.'}</span>
+          <button className="btn small" onClick={() => BrowserOpenURL(status.captchaUrl)}>Открыть проверку в браузере</button>
+        </div>}
         {!draft ? (
           <div className="empty-state">
             <p>Выберите сервер слева или добавьте новый, чтобы подключиться через free-turn-proxy.</p>
@@ -115,7 +120,6 @@ export default function App() {
             dirty={dirty}
             status={status}
             isActive={status.serverId === draft.id}
-            captchaUrl={captchaUrl}
             logs={logs}
             onChange={setDraft}
             onSave={handleSave}

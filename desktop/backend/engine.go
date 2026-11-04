@@ -3,8 +3,10 @@ package backend
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/notify"
 	"github.com/samosvalishe/free-turn-proxy/desktop/backend/wintunnel"
@@ -14,15 +16,16 @@ import (
 
 // Status is a UI-friendly snapshot of the running (or last) session.
 type Status struct {
-	State    string `json:"state"` // idle | connecting | connected | captcha | error
-	Streams  int    `json:"streams"`
-	Total    int    `json:"total"`
-	ErrMsg   string `json:"errMsg"`
-	TxRate   int64  `json:"txRate"`
-	RxRate   int64  `json:"rxRate"`
-	TxTotal  int64  `json:"txTotal"`
-	RxTotal  int64  `json:"rxTotal"`
-	ServerID string `json:"serverId"`
+	State      string `json:"state"` // idle | connecting | connected | captcha | error
+	Streams    int    `json:"streams"`
+	Total      int    `json:"total"`
+	ErrMsg     string `json:"errMsg"`
+	TxRate     int64  `json:"txRate"`
+	RxRate     int64  `json:"rxRate"`
+	TxTotal    int64  `json:"txTotal"`
+	RxTotal    int64  `json:"rxTotal"`
+	ServerID   string `json:"serverId"`
+	CaptchaURL string `json:"captchaUrl"`
 }
 
 // LogLine is pushed to the frontend over the "core:log" event as the session runs.
@@ -35,6 +38,7 @@ type LogLine struct {
 const (
 	eventLog     = "core:log"
 	eventState   = "core:state"
+	eventStats   = "core:stats"
 	eventCaptcha = "core:captcha"
 )
 
@@ -45,8 +49,11 @@ type Engine struct {
 	ctx   context.Context
 	store *Store
 
-	mu       sync.Mutex
-	serverID string
+	mu         sync.Mutex
+	serverID   string
+	planCancel context.CancelFunc
+	captchaURL string
+	traffic    trafficMeter
 }
 
 func NewEngine(store *Store) *Engine {
@@ -56,9 +63,35 @@ func NewEngine(store *Store) *Engine {
 	return e
 }
 
-func (e *Engine) SetContext(ctx context.Context) { e.ctx = ctx }
+func (e *Engine) SetContext(ctx context.Context) {
+	e.ctx = ctx
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				wailsruntime.EventsEmit(ctx, eventStats, e.Status())
+			}
+		}
+	}()
+}
 
 func (e *Engine) Connect(srv Server) error {
+	e.mu.Lock()
+	if e.planCancel != nil {
+		e.planCancel()
+	}
+	ctx := e.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	e.planCancel = cancel
+	e.mu.Unlock()
+	defer cancel()
 	if srv.Peer == "" {
 		return errors.New("peer is required")
 	}
@@ -73,6 +106,16 @@ func (e *Engine) Connect(srv Server) error {
 	if verr := mobile.ValidateConfig(cfg); verr != "" {
 		return errors.New(verr)
 	}
+	var exclusions []string
+	if vpn {
+		exclusions, err = resolveExclusions(ctx, srv, net.DefaultResolver)
+		if err != nil {
+			return fmt.Errorf("VPN endpoints: %w", err)
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	// Unconditionally clear whatever might already be running, including a
 	// half-failed previous attempt (e.g. the adapter came up but the tunnel
@@ -83,19 +126,12 @@ func (e *Engine) Connect(srv Server) error {
 
 	e.mu.Lock()
 	e.serverID = srv.ID
+	e.traffic = trafficMeter{}
 	e.mu.Unlock()
 
 	if vpn {
-		var exclusions []string
-		if srv.SSH != nil && srv.SSH.IP != "" {
-			exclusions = append(exclusions, srv.SSH.IP)
-		}
-		if srv.Peer != "" {
-			if host, _, err := net.SplitHostPort(srv.Peer); err == nil && net.ParseIP(host) != nil {
-				if srv.SSH == nil || host != srv.SSH.IP {
-					exclusions = append(exclusions, host)
-				}
-			}
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 		return wintunnel.Connect(cfg, srv.WgClientConf, DefaultTunnelMTU, exclusions...)
 	}
@@ -103,23 +139,35 @@ func (e *Engine) Connect(srv Server) error {
 }
 
 func (e *Engine) Disconnect() {
+	e.mu.Lock()
+	if e.planCancel != nil {
+		e.planCancel()
+		e.planCancel = nil
+	}
+	e.mu.Unlock()
 	e.forceStop()
 }
 
 func (e *Engine) forceStop() {
+	e.mu.Lock()
+	e.captchaURL = ""
+	e.mu.Unlock()
 	mobile.Stop()
 	wintunnel.Disconnect()
 }
 
 func (e *Engine) Status() Status {
-	snap := mobile.GetState()
 	e.mu.Lock()
-	serverID := e.serverID
-	e.mu.Unlock()
+	defer e.mu.Unlock()
+	snap := mobile.GetState()
+	txRate, rxRate := e.traffic.sample(snap.TxTotal, snap.RxTotal, time.Now())
+	if snap.State != "connected" {
+		txRate, rxRate = 0, 0
+	}
 	return Status{
 		State: snap.State, Streams: snap.Streams, Total: snap.Total, ErrMsg: snap.ErrMsg,
-		TxRate: snap.TxRate, RxRate: snap.RxRate, TxTotal: snap.TxTotal, RxTotal: snap.RxTotal,
-		ServerID: serverID,
+		TxRate: txRate, RxRate: rxRate, TxTotal: snap.TxTotal, RxTotal: snap.RxTotal,
+		ServerID: e.serverID, CaptchaURL: e.captchaURL,
 	}
 }
 
@@ -145,8 +193,12 @@ func (e *Engine) OnState(state string, streams, total int, errMsg string) {
 	}
 	e.mu.Lock()
 	serverID := e.serverID
+	if state == "idle" || state == "error" {
+		e.captchaURL = ""
+	}
+	captchaURL := e.captchaURL
 	e.mu.Unlock()
-	wailsruntime.EventsEmit(e.ctx, eventState, Status{State: state, Streams: streams, Total: total, ErrMsg: errMsg, ServerID: serverID})
+	wailsruntime.EventsEmit(e.ctx, eventState, Status{State: state, Streams: streams, Total: total, ErrMsg: errMsg, ServerID: serverID, CaptchaURL: captchaURL})
 }
 
 func (e *Engine) OnLog(level, msg string, unixMillis int64) {
@@ -157,10 +209,14 @@ func (e *Engine) OnLog(level, msg string, unixMillis int64) {
 }
 
 func (e *Engine) OnCaptcha(url string) {
+	e.mu.Lock()
+	e.captchaURL = url
+	e.mu.Unlock()
 	if e.ctx == nil {
 		return
 	}
 	wailsruntime.EventsEmit(e.ctx, eventCaptcha, url)
+	wailsruntime.EventsEmit(e.ctx, eventStats, e.Status())
 	if url != "" {
 		go func() {
 			_ = notify.ShowCaptchaNotification(url, nil)

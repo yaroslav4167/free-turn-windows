@@ -220,6 +220,30 @@ textarea {
   background: rgba(240, 85, 79, 0.12);
 }
 
+.status-pill.verification-required {
+  color: var(--warn);
+  background: rgba(229, 185, 58, 0.12);
+}
+
+.captcha-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  margin: 12px;
+  color: var(--warn);
+  background: rgba(229, 185, 58, 0.12);
+  border: 1px solid var(--warn);
+}
+
+.captcha-notice span { overflow-wrap: anywhere; }
+.captcha-notice button { flex-shrink: 0; }
+.traffic-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.traffic-grid > div { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+.traffic-grid strong { font-size: 20px; }
+.traffic-grid span, .traffic-grid small { color: var(--text-dim); }
+
 .detail-body {
   flex: 1;
   overflow-y: auto;

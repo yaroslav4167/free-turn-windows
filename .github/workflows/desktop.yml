@@ -28,7 +28,9 @@ jobs:
         run: npm ci
       - name: Check frontend
         working-directory: desktop/frontend
-        run: npx --no-install tsc --noEmit
+        run: |
+          npx --no-install tsc --noEmit
+          npm test
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
       - name: Build desktop

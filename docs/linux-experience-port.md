@@ -15,13 +15,19 @@ Target: this fork's `feat/windows-desktop-experience` branch.
 - Keep working streams connected when another VK link requires captcha;
   regression test added (pending CI).
 - Default window size 900 × 600, matching the minimum supported dimensions.
+- Bounded, cancellable endpoint DNS resolution before stopping the old session.
+- Captcha URL in status snapshots and a persistent browser-verification notice.
+- Traffic sampling/polling with stale-response protection and visible counters.
+- Multiline VK editing preserves blank lines and spaces while typing.
+- SSH connection timers are captured per connection to avoid races during test
+  cleanup; race detection remains enabled for the complete backend suite.
 
 ## Pending
 
-- Shared UI: animated connection control, amber captcha notice, traffic polling,
-  compact settings, hover information, and multiline VK links.
+- Remaining shared UI: animated connection control, compact settings, hover
+  information, and traffic charts.
 - English/Russian JSON localization and system language detection.
-- Routing lists and bounded endpoint DNS resolution before network mutations.
+- Routing lists and Windows route application.
 - ICMP server ping using Windows process invocation.
 - Safe detection/reuse of existing VPS installations.
 - Fork-specific update delivery, Windows installer/uninstaller, screenshots.
