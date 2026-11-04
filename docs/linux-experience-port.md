@@ -43,6 +43,13 @@ startup confirmation/rollback. Windows release packaging remains ZIP, not Linux 
 
 ## Validation pending
 
+Completed locally: 68 frontend tests, TypeScript, production UI build, shared Go
+tests, Windows cross-compilation and Windows-targeted vet. Browser checks of the
+real components at 900 × 600 covered all four pages, live language switching,
+amber captcha with working traffic, browser action, resolved/disconnected states,
+peer names and editable routing lists. The browser used a demo backend, not a live
+VPN. The CSS build matches the Linux fork's shared interface stylesheet.
+
 - Native Windows build/race/vet for the complete merged port and adapters.
 - Real-machine Wintun/connect/disconnect, UAC, scheduled logon and GUI-update tests.
 - Native Windows screenshots (current README reference images are from Linux).

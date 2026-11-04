@@ -5,12 +5,16 @@ import (
 	"os"
 	osexec "os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 // Run the actual embedded parser offline, without SSH, WireGuard or root.
 func TestPeerNameMarkers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Linux server shell parser is executed in shared Linux CI, not a Windows WSL shim")
+	}
 	if _, err := osexec.LookPath("bash"); err != nil {
 		t.Skip("bash is unavailable")
 	}
