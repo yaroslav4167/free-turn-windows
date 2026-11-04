@@ -18,6 +18,9 @@ Target: this fork's `feat/windows-desktop-experience` branch.
 - Bounded, cancellable endpoint DNS resolution before stopping the old session.
 - Captcha URL in status snapshots and a persistent browser-verification notice.
 - Traffic sampling/polling with stale-response protection and visible counters.
+- Rounded-star-to-circle power control, eased rotation and oval-first morphing
+  loader. Pending setup is cancellable and not falsely labelled VPN-enabled;
+  working connections with captcha remain amber and can be disconnected.
 - Multiline VK editing preserves blank lines and spaces while typing.
 - Read-only detection of common existing VPS installations; detected servers
   bypass install/WireGuard/start and save only a local profile with manually
@@ -28,8 +31,8 @@ Target: this fork's `feat/windows-desktop-experience` branch.
 
 ## Pending
 
-- Remaining shared UI: animated connection control, compact settings, hover
-  information, and traffic charts.
+- Remaining shared UI: compact settings, hover information, traffic charts,
+  and the complete connection/settings page layout.
 - English/Russian JSON localization and system language detection.
 - Routing lists and Windows route application.
 - ICMP server ping using Windows process invocation.

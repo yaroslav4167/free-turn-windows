@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import {backend, BrowserOpenURL, Connect, CoreVersion, DeleteServer, Disconnect, EventsOn, ListServers, SaveServer, Status} from './api'
 import {watchStatus} from './status'
 import Sidebar from './components/Sidebar'
@@ -26,6 +26,8 @@ export default function App() {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [version, setVersion] = useState('')
   const [connectError, setConnectError] = useState('')
+  const [pendingServerId, setPendingServerId] = useState('')
+  const connectionRequest = useRef(0)
   const [showAdd, setShowAdd] = useState(false)
 
   useEffect(() => {
@@ -77,6 +79,8 @@ export default function App() {
 
   const handleConnect = async () => {
     if (!draft) return
+    const request = ++connectionRequest.current
+    setPendingServerId(draft.id)
     setConnectError('')
     try {
       // Connect always force-stops whatever was running first (a different
@@ -84,12 +88,16 @@ export default function App() {
       // orchestrate a separate Disconnect from here.
       await Connect(draft.id)
     } catch (e) {
-      setConnectError(String(e))
+      if (request === connectionRequest.current) setConnectError(String(e))
+    } finally {
+      if (request === connectionRequest.current) setPendingServerId('')
     }
   }
 
   const handleDisconnect = () => {
-    Disconnect()
+    connectionRequest.current++
+    setPendingServerId('')
+    void Disconnect().catch(e => setConnectError(String(e)))
   }
 
   return (
@@ -120,6 +128,7 @@ export default function App() {
             dirty={dirty}
             status={status}
             isActive={status.serverId === draft.id}
+            pending={pendingServerId === draft.id}
             logs={logs}
             onChange={setDraft}
             onSave={handleSave}

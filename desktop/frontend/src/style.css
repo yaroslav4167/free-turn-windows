@@ -244,6 +244,51 @@ textarea {
 .traffic-grid strong { font-size: 20px; }
 .traffic-grid span, .traffic-grid small { color: var(--text-dim); }
 
+.connection-control { display: flex; flex-direction: column; align-items: center; padding: 8px 0 20px; }
+.connection-control h3 { margin: 0; font-size: 18px; font-weight: 500; }
+.power-button {
+  --power-fill: #22242b;
+  --power-border: #474953;
+  position: relative;
+  width: 150px;
+  height: 190px;
+  padding: 0;
+  margin: 8px 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #e2e3eb;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 400ms ease;
+}
+.power-button:hover:not(:disabled) { --power-border: var(--accent); }
+.power-button:disabled { opacity: 0.4; cursor: default; }
+.power-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.connected .power-button { --power-fill: #284033; --power-border: #6eae88; color: #d2f4df; }
+.verification-required .power-button { --power-fill: #493c23; --power-border: #e5b93a; color: #ffe6a3; }
+.power-outline {
+  position: absolute;
+  inset: 0;
+  width: 150px;
+  height: 150px;
+  pointer-events: none;
+  fill: var(--power-fill);
+  stroke: var(--power-border);
+  stroke-width: 1;
+  transform-origin: 75px 75px;
+  transition: fill 400ms ease, stroke 400ms ease;
+}
+.power-symbol { position: absolute; top: 51px; left: 51px; width: 48px; height: 48px; pointer-events: none; }
+.power-idle-icon, .connection-loader { position: absolute; inset: 0; transition: opacity 180ms ease; }
+.connection-loader { opacity: 0; }
+.power-button[aria-busy='true'] .power-idle-icon { opacity: 0; }
+.power-button[aria-busy='true'] .connection-loader { opacity: 1; }
+.power-action { position: absolute; top: 164px; left: 0; width: 100%; font-size: 12px; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) {
+  .power-button, .power-outline, .power-idle-icon, .connection-loader { transition: none; }
+}
+
 .detail-body {
   flex: 1;
   overflow-y: auto;
