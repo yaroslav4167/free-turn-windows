@@ -1,5 +1,9 @@
 # FreeTurn Desktop for Windows
 
+> Development moved to [FreeTurn Desktop](https://github.com/yaroslav4167/free-turn-desktop).
+> Install bridge update **v1.1.4**, then check for updates again.
+> Profiles and settings are preserved. [Migration notes](MIGRATION_RELEASE.md).
+
 Windows fork with the interface and shared functionality from
 [yaroslav4167/free-turn-linux](https://github.com/yaroslav4167/free-turn-linux).
 Original Windows project: [purkalolka/free-turn-windows](https://github.com/purkalolka/free-turn-windows).

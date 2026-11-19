@@ -27,7 +27,7 @@ gobin=$(go env GOBIN)
 if [ -z "$gobin" ]; then gobin="$(go env GOPATH)/bin"; fi
 npm --prefix desktop/frontend ci
 version=${VERSION:-$(git describe --tags --exact-match 2>/dev/null || echo dev)}
-repository=${UPDATE_REPOSITORY:-}
+repository=${UPDATE_REPOSITORY:-yaroslav4167/free-turn-desktop}
 case "$repository" in
   *[!a-zA-Z0-9_./-]*) echo 'Invalid UPDATE_REPOSITORY' >&2; exit 1 ;;
 esac

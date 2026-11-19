@@ -2,7 +2,7 @@ name: Windows desktop checks
 
 on:
   push:
-    branches: ['feat/windows-desktop-experience']
+    branches: ['feat/windows-desktop-experience', 'migration/**']
   workflow_dispatch:
 
 permissions:
@@ -40,7 +40,7 @@ jobs:
       - name: Build desktop
         working-directory: desktop
         env:
-          UPDATE_REPOSITORY: ${{ github.repository }}
+          UPDATE_REPOSITORY: yaroslav4167/free-turn-desktop
         run: wails build -ldflags "-checklinkname=0 -s -w -X main.updateRepository=$env:UPDATE_REPOSITORY" -trimpath
       - name: Test core and backend
         run: go test -race ./internal/session ./mobile ./desktop/...
